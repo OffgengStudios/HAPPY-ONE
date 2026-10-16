@@ -1,0 +1,67 @@
+name: happy-staging
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DOCKER_POSTGRES_ADMIN_PASSWORD:?Set a separate database admin password}
+      HAPPY_DB_NAME: ${POSTGRES_DB:?Set POSTGRES_DB}
+      HAPPY_DB_USER: ${POSTGRES_USER:?Set POSTGRES_USER}
+      HAPPY_DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ../docker/init-app.sql:/docker-entrypoint-initdb.d/10-happy.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+  object-storage:
+    image: chrislusf/seaweedfs:4.48
+    command:
+      [
+        "mini",
+        "-dir=/data",
+        "-ip=object-storage",
+        "-ip.bind=0.0.0.0",
+        "-s3.port=9000",
+        "-admin.ui=false",
+        "-webdav=false",
+        "-master.telemetry=false",
+        "-s3.port.iceberg=0",
+        "-s3.port.lance=0",
+      ]
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?Set S3_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?Set S3_SECRET_ACCESS_KEY}
+      S3_BUCKET: ${S3_BUCKET:?Set S3_BUCKET}
+    volumes:
+      - object-data:/data
+    restart: unless-stopped
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/deployment/api.Dockerfile
+    env_file: ../../.env.staging
+    depends_on:
+      postgres:
+        condition: service_healthy
+      object-storage:
+        condition: service_started
+    ports:
+      - "127.0.0.1:8000:8000"
+    restart: unless-stopped
+  web:
+    build:
+      context: ../..
+      dockerfile: infra/deployment/web.Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?Set public staging API URL}
+    ports:
+      - "127.0.0.1:3000:3000"
+    restart: unless-stopped
+volumes:
+  postgres-data:
+  object-data:

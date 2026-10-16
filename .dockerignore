@@ -1,0 +1,12 @@
+.git
+.env
+.env.*
+.venv
+.local
+**/node_modules
+**/.next
+**/__pycache__
+**/*.egg-info
+**/test-results
+**/playwright-report
+**/*.tsbuildinfo

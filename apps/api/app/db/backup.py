@@ -1,0 +1,174 @@
+"""Create, validate and restore-test PostgreSQL backups without targeting live data."""
+
+import argparse
+import hashlib
+import json
+import os
+import re
+import subprocess
+from datetime import UTC, datetime
+from pathlib import Path
+from uuid import uuid4
+
+import psycopg
+from psycopg import sql
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import URL, make_url
+
+from app.core.config import PROJECT_ROOT, settings
+from app.db.local import find_binary_directory
+
+BACKUP_ROOT = PROJECT_ROOT / ".local" / "backups"
+RESTORE_DATABASE = re.compile(r"^happy_restore_test_[0-9a-f]{32}$")
+
+
+def postgres_url(value: str) -> URL:
+    url = make_url(value)
+    if url.get_backend_name() != "postgresql" or not url.database:
+        raise ValueError("A PostgreSQL database URL is required.")
+    return url.set(drivername="postgresql")
+
+
+def executable(name: str) -> str:
+    suffix = ".exe" if os.name == "nt" else ""
+    return str(find_binary_directory() / f"{name}{suffix}")
+
+
+def run(command: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        command,
+        check=True,
+        capture_output=True,
+        text=True,
+        creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+    )
+
+
+def checksum(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def create_backup(output: Path | None = None) -> Path:
+    source = postgres_url(settings.database_url)
+    BACKUP_ROOT.mkdir(parents=True, exist_ok=True)
+    archive = output or BACKUP_ROOT / f"happy-{datetime.now(UTC):%Y%m%dT%H%M%SZ}.dump"
+    archive = archive.resolve()
+    archive.parent.mkdir(parents=True, exist_ok=True)
+    run(
+        [
+            executable("pg_dump"),
+            "--format=custom",
+            "--no-owner",
+            "--no-privileges",
+            "--file",
+            str(archive),
+            source.render_as_string(hide_password=False),
+        ]
+    )
+    manifest = {
+        "format": "postgresql-custom",
+        "created_at": datetime.now(UTC).isoformat(),
+        "source_database": source.database,
+        "sha256": checksum(archive),
+        "size_bytes": archive.stat().st_size,
+    }
+    archive.with_suffix(archive.suffix + ".json").write_text(
+        json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+    )
+    return archive
+
+
+def verify_backup(archive: Path) -> dict[str, object]:
+    archive = archive.resolve()
+    manifest_path = archive.with_suffix(archive.suffix + ".json")
+    if not archive.is_file() or not manifest_path.is_file():
+        raise ValueError("Backup archive and checksum manifest are required.")
+    manifest: dict[str, object] = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("sha256") != checksum(archive):
+        raise ValueError("Backup checksum does not match its manifest.")
+    catalogue = run([executable("pg_restore"), "--list", str(archive)]).stdout
+    if "alembic_version" not in catalogue or "TABLE" not in catalogue:
+        raise ValueError("Backup catalogue does not contain the expected HAPPY schema.")
+    return manifest
+
+
+def restore_test(archive: Path, admin_url: str) -> str:
+    verify_backup(archive)
+    admin = postgres_url(admin_url)
+    if admin.database not in {"postgres", "template1"}:
+        raise ValueError("Restore admin URL must connect to postgres or template1.")
+    database = "happy_restore_test_" + uuid4().hex
+    target = admin.set(database=database)
+    with psycopg.connect(
+        admin.render_as_string(hide_password=False), autocommit=True
+    ) as connection:
+        connection.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(database)))
+    try:
+        run(
+            [
+                executable("pg_restore"),
+                "--exit-on-error",
+                "--no-owner",
+                "--no-privileges",
+                "--dbname",
+                target.render_as_string(hide_password=False),
+                str(archive.resolve()),
+            ]
+        )
+        engine = create_engine(target.set(drivername="postgresql+psycopg"))
+        try:
+            with engine.connect() as connection:
+                revision = connection.scalar(text("SELECT version_num FROM alembic_version"))
+                tables = connection.scalar(
+                    text(
+                        "SELECT count(*) FROM information_schema.tables "
+                        "WHERE table_schema = 'public'"
+                    )
+                )
+            if not revision or not tables:
+                raise ValueError("Restored database is missing migration or table evidence.")
+        finally:
+            engine.dispose()
+        return str(revision)
+    finally:
+        if not RESTORE_DATABASE.fullmatch(database):
+            raise ValueError("Refusing to remove a database outside the restore-test namespace.")
+        with psycopg.connect(
+            admin.render_as_string(hide_password=False), autocommit=True
+        ) as connection:
+            connection.execute(
+                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+                "WHERE datname = %s AND pid <> pg_backend_pid()",
+                (database,),
+            )
+            connection.execute(sql.SQL("DROP DATABASE {}").format(sql.Identifier(database)))
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("action", choices=["create", "verify", "restore-test"])
+    parser.add_argument("archive", nargs="?", type=Path)
+    parser.add_argument("--admin-url", default=os.environ.get("HAPPY_RESTORE_ADMIN_URL", ""))
+    arguments = parser.parse_args()
+    if arguments.action == "create":
+        archive = create_backup(arguments.archive)
+        print(f"Backup created: {archive}")
+        return
+    if not arguments.archive:
+        parser.error("verify and restore-test require an archive path")
+    if arguments.action == "verify":
+        manifest = verify_backup(arguments.archive)
+        print(f"Backup verified: {manifest['sha256']}")
+        return
+    if not arguments.admin_url:
+        parser.error("restore-test requires --admin-url or HAPPY_RESTORE_ADMIN_URL")
+    revision = restore_test(arguments.archive, arguments.admin_url)
+    print(f"Isolated restore test passed at migration {revision}.")
+
+
+if __name__ == "__main__":
+    main()

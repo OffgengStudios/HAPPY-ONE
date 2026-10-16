@@ -1,0 +1,22 @@
+{
+  "name": "HAPPY Management Platform",
+  "spec_version": "1.0",
+  "status": "developer-implementation-baseline",
+  "architecture": {
+    "frontend": "Next.js + TypeScript + Tailwind CSS",
+    "backend": "FastAPI + Python + SQLAlchemy + Alembic",
+    "database": "PostgreSQL",
+    "storage": "Private S3-compatible object storage",
+    "style": "Modular monolith"
+  },
+  "hard_constraints": [
+    "greenfield v1",
+    "no WhatsApp integration",
+    "no Google Sheets backend",
+    "onboarding required before employer submission",
+    "placement confirmed only after actual start and first monthly income verification",
+    "AI advisory only",
+    "server-side authorization",
+    "audit material/sensitive actions"
+  ]
+}

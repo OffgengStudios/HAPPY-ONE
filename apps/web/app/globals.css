@@ -1,0 +1,216 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 210 42.857% 97.2549%;
+  --foreground: 215 27.907% 16.8627%;
+  --border: 211.765 30.909% 89.2157%;
+  --primary: 216 100% 36.2745%;
+  --primary-hover: 216.164 100% 28.6275%;
+  --primary-subtle: 217.5 100% 95.2941%;
+  --primary-foreground: 0 0% 100%;
+  --muted: 221.053 13.725% 46.6667%;
+  --accent: 31 91% 56%;
+  --success: 145 63% 32%;
+  --warning: 38 92% 50%;
+  --heading: 225 55.556% 14.1176%;
+  --sidebar: 225 55.556% 14.1176%;
+  --sidebar-foreground: 220 41% 90%;
+  --sidebar-active: 225 30% 23.5%;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  outline-color: hsl(var(--primary));
+}
+
+@layer components {
+  .field-label {
+    @apply flex flex-col gap-2 text-sm font-medium;
+  }
+  .field {
+    @apply min-h-10 w-full min-w-0 rounded-md border border-border bg-white px-3 py-2 text-sm font-normal focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary;
+  }
+  .command {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-border bg-white px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:cursor-wait disabled:opacity-50;
+  }
+  .primary {
+    @apply border-primary bg-primary text-primary-foreground hover:bg-primary-hover;
+  }
+  .icon-button {
+    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-white hover:bg-gray-100 disabled:opacity-50;
+  }
+  .nav-item {
+    @apply flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-gray-100;
+  }
+  .nav-item.active {
+    @apply bg-primary-subtle font-medium text-primary;
+    box-shadow: inset 3px 0 hsl(var(--primary));
+  }
+  .data-row {
+    @apply grid gap-3 border-b border-border py-4 text-sm;
+  }
+  .action-footer {
+    @apply sticky bottom-0 z-10 -mx-5 -mb-5 flex flex-wrap justify-end gap-2 border-t border-border bg-white px-5 pt-4;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+  }
+  .metric-card {
+    @apply min-w-0 rounded-lg border border-border bg-white p-4 text-left hover:bg-primary-subtle;
+    box-shadow: 0 8px 24px hsl(var(--heading) / 0.05);
+  }
+}
+
+[aria-label="Workspace content"] h2 {
+  color: hsl(var(--heading));
+  font-weight: 700;
+}
+
+@media (min-width: 768px) {
+  .authenticated-shell {
+    padding-left: 260px;
+  }
+
+  .account-sidebar {
+    background: hsl(var(--sidebar));
+    color: hsl(var(--sidebar-foreground));
+  }
+
+  .account-sidebar .nav-item {
+    color: hsl(var(--sidebar-foreground));
+    font-weight: 600;
+  }
+
+  .account-sidebar [aria-label="Account navigation"] {
+    background: transparent;
+  }
+
+  .account-sidebar .field {
+    color: hsl(var(--foreground));
+  }
+
+  .account-sidebar .nav-item.active {
+    color: hsl(var(--primary-foreground));
+  }
+
+  .account-sidebar .nav-item:hover,
+  .account-sidebar .nav-item.active {
+    background: hsl(var(--sidebar-active));
+  }
+
+  .account-sidebar .nav-item:focus-visible {
+    outline: 2px solid white;
+    outline-offset: 2px;
+  }
+}
+
+@keyframes surface-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes drawer-enter {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes sheet-enter {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes backdrop-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .command,
+  .icon-button,
+  .nav-item,
+  .field,
+  .quick-add-trigger {
+    transition:
+      background-color 160ms ease,
+      border-color 160ms ease,
+      color 160ms ease,
+      box-shadow 160ms ease,
+      transform 160ms var(--ease-out);
+  }
+
+  .metric-card {
+    transition:
+      background-color 160ms ease,
+      box-shadow 160ms ease;
+  }
+
+  .command:not(:disabled):active,
+  .icon-button:not(:disabled):active,
+  .quick-add-trigger:active {
+    transform: scale(0.98);
+  }
+
+  .sign-in-surface,
+  dialog[open],
+  [popover]:popover-open {
+    animation: surface-enter 260ms var(--ease-out) both;
+  }
+
+  dialog[open][data-placement="action"],
+  dialog[open][data-placement="sheet"] {
+    animation: sheet-enter 360ms var(--ease-out) both;
+  }
+
+  dialog[open]::backdrop {
+    animation: backdrop-enter 180ms ease-out both;
+  }
+}
+
+@media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
+  dialog[open][data-placement="action"] {
+    animation-name: drawer-enter;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin {
+    animation: none;
+  }
+}

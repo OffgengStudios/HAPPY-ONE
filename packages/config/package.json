@@ -1,0 +1,17 @@
+{
+  "name": "@happy/config",
+  "version": "1.0.0-rc.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./env": "./env.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1"
+  },
+  "scripts": {
+    "type-check": "node --check env.mjs",
+    "lint": "node --check env.mjs",
+    "test": "node --test tests/*.test.mjs"
+  }
+}

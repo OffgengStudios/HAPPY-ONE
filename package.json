@@ -1,0 +1,40 @@
+{
+  "name": "happy-management-platform",
+  "version": "1.0.0-rc.1",
+  "private": true,
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "web:dev": "pnpm --filter web dev",
+    "api:dev": "python scripts/api.py dev",
+    "type-check": "pnpm --recursive run type-check",
+    "lint": "pnpm --recursive run lint",
+    "test": "pnpm --recursive run test",
+    "verify": "python scripts/ci.py",
+    "format:check": "prettier --check apps/web packages package.json pnpm-workspace.yaml docker-compose.yml infra .github/workflows",
+    "storage:install": "python scripts/install_storage.py",
+    "storage:local": "python scripts/api.py storage-local start",
+    "storage:stop": "python scripts/api.py storage-local stop",
+    "storage:setup": "python scripts/api.py storage-setup",
+    "api:lint": "python scripts/api.py lint",
+    "api:type-check": "python scripts/api.py type-check",
+    "api:test": "python scripts/api.py test",
+    "api:migrate": "python scripts/api.py migrate",
+    "iam:bootstrap": "python scripts/api.py iam-bootstrap",
+    "db:setup": "python scripts/api.py db-setup",
+    "db:local": "python scripts/api.py db-local start",
+    "db:local:stop": "python scripts/api.py db-local stop",
+    "db:local:status": "python scripts/api.py db-local status",
+    "db:backup": "python scripts/api.py db-backup"
+    ,"cv-parser:worker": "python scripts/api.py cv-parser-worker"
+  },
+  "pnpm": {
+    "overrides": {
+      "postcss": "^8.5.18"
+    }
+  },
+  "devDependencies": {
+    "prettier": "^3.6.0",
+    "typescript": "^5.6.3"
+  }
+}

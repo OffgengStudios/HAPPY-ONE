@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  foundation:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: happy_test
+          POSTGRES_USER: happy
+          POSTGRES_PASSWORD: happy_dev_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U happy -d happy_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+psycopg://happy:happy_dev_password@localhost:5432/happy_test
+      APP_ENV: test
+      S3_ENDPOINT_URL: http://127.0.0.1:9000
+      S3_BUCKET: happy-test-private
+      S3_ACCESS_KEY_ID: happy_local
+      S3_SECRET_ACCESS_KEY: happy_local_storage_password
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -e apps/api[dev]
+          pnpm install --frozen-lockfile
+      - name: Install browser
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.local/browsers
+        run: pnpm --filter web exec playwright install --with-deps chromium
+      - name: Start private object storage
+        run: |
+          python scripts/install_storage.py
+          APP_ENV=development pnpm storage:local
+      - name: Verify foundation
+        run: pnpm verify
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: foundation-browser-results
+          path: apps/web/test-results
+          retention-days: 7
