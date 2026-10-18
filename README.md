@@ -6,6 +6,11 @@ Current release: **`1.0.0-rc.1`**. The product uses Semantic Versioning while th
 backward-compatible HTTP contract remains under **`/api/v1`**. See the
 [versioning and release policy](docs/47-VERSIONING-AND-RELEASES.md).
 
+Current evidence-based status and release blockers are recorded in the
+[Operations Platform readiness audit](docs/48-OPERATIONS-READINESS-AUDIT.md).
+The latest local quality baseline is recorded in
+[Quality Baseline Restoration](docs/49-QUALITY-BASELINE-RESTORATION.md).
+
 HAPPY first, integrations second. All thirteen phases have local implementation
 acceptance for their documented scope. Phase 7's HAPPY-side parser job, advisory
 result and human-review workflow is accepted; the real parser transport remains a
@@ -202,6 +207,15 @@ the full local checkpoint below.
 
 ## Verification
 
+Current quality checkpoint (18 Oct 2026): root `pnpm verify` passes at migration
+`0031_oidc_sso` with 273 backend tests, four environment tests, 98 authenticated
+desktop/mobile browser tests, clean Python and frontend static checks, a production
+web build, and clean Python/JavaScript production dependency audits. Generic Tasks
+and Handoffs retain a separate permission-aware workspace while each operational
+role keeps its established My Work projection. See the
+[quality baseline evidence](docs/49-QUALITY-BASELINE-RESTORATION.md). Live provider,
+integration, backup-retention and restore-exercise gates remain open.
+
 Phase 10 functional acceptance (12 Oct 2026): migration `0018_reporting`, KPI
 services, evidence drilldowns, stored global targets/forecasts, audited bounded
 CSV exports, data-quality summaries and the Management workspace are implemented.
@@ -397,4 +411,3 @@ Provider-specific deployment preparation is available in
 [`docs/45-RENDER-NEON-DEPLOYMENT.md`](docs/45-RENDER-NEON-DEPLOYMENT.md): Neon hosts
 PostgreSQL, while Render runs the API and web services from `render.yaml`. Cloud
 provisioning and the production release gates remain pending.
-

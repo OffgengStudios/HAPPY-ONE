@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 from fastapi import Request
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.errors import ApiError
 from app.modules.demand.models import Record
@@ -24,7 +25,7 @@ def teams(actor: Principal) -> set[str]:
     return {code for code in WORKSPACES if f"workspace_{code.lower()}:view" in actor.permissions}
 
 
-def task_scope(actor: Principal):
+def task_scope(actor: Principal) -> ColumnElement[bool]:
     allowed = teams(actor)
     return or_(
         Task.owner_user_id == actor.user.id,
@@ -33,7 +34,7 @@ def task_scope(actor: Principal):
     )
 
 
-def handoff_scope(actor: Principal):
+def handoff_scope(actor: Principal) -> ColumnElement[bool]:
     allowed = teams(actor)
     return or_(
         Handoff.sent_by == actor.user.id,
@@ -150,7 +151,8 @@ def task_transition(
     row.status = target
     row.completed_at = now() if target == "COMPLETED" else None
     changed(row, actor.user.id)
-    audit(db, f"task.{status}ed", actor.audit_actor, "task", row.id, request)
+    action = "claimed" if status == "claim" else "completed"
+    audit(db, f"task.{action}", actor.audit_actor, "task", row.id, request)
     db.commit()
     return row
 

@@ -2,10 +2,13 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from threading import Event
+from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
 import pytest
+from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 from sqlalchemy import create_engine, event, select, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
@@ -13,9 +16,19 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.sandbox import create_test_schema, drop_test_schema
 from app.db.session import get_db
+from app.integrations.oidc import OidcIdentity, get_oidc_client
 from app.main import app
-from app.modules.iam.models import AuditEvent, AuthSession, MfaChallenge, Role, User, now
-from app.modules.iam.security import digest, get_mfa_verifier, hasher
+from app.modules.iam.models import (
+    AuditEvent,
+    AuthSession,
+    ExternalIdentity,
+    MfaChallenge,
+    OidcState,
+    Role,
+    User,
+    now,
+)
+from app.modules.iam.security import digest, get_mfa_verifier, hasher, totp
 from app.modules.iam.service import revoke_all
 
 pytestmark = [
@@ -308,6 +321,128 @@ def test_mfa_challenge_fails_closed_and_is_consumed(db: Session) -> None:
         client.post("/api/v1/auth/mfa/verify", json={"code": "123456"}, headers=ORIGIN).status_code
         == 401
     )
+
+
+def test_totp_enrolment_encrypted_factor_and_single_use_recovery(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        settings, "identity_encryption_key", SecretStr(Fernet.generate_key().decode())
+    )
+    user = account(db, "SUPPLY")
+    client = TestClient(app)
+    sign_in(client, user)
+    enrolled = client.post(
+        "/api/v1/auth/mfa/enrol",
+        json={"password": PASSWORD},
+        headers=headers(client),
+    )
+    assert enrolled.status_code == 200, enrolled.text
+    secret = enrolled.json()["secret"]
+    assert secret in enrolled.json()["otpauth_uri"]
+    db.refresh(user)
+    assert user.mfa_pending_secret_ciphertext
+    assert secret not in user.mfa_pending_secret_ciphertext
+
+    confirmed = client.post(
+        "/api/v1/auth/mfa/confirm",
+        json={"password": PASSWORD, "code": totp(secret)},
+        headers=headers(client),
+    )
+    assert confirmed.status_code == 200, confirmed.text
+    recovery = confirmed.json()["recovery_codes"]
+    assert len(recovery) == 8 and client.get("/api/v1/auth/me").status_code == 200
+    db.refresh(user)
+    assert user.mfa_enabled and user.mfa_secret_ciphertext
+    assert secret not in user.mfa_secret_ciphertext
+    assert all(code not in user.mfa_recovery_hashes for code in recovery)
+
+    assert client.post("/api/v1/auth/logout", headers=headers(client)).status_code == 204
+    login = client.post(
+        "/api/v1/auth/login",
+        json={"email": user.email, "password": PASSWORD},
+        headers=ORIGIN,
+    )
+    assert login.json() == {"mfa_required": True}
+    verified = client.post("/api/v1/auth/mfa/verify", json={"code": recovery[0]}, headers=ORIGIN)
+    assert verified.status_code == 200
+    db.refresh(user)
+    assert len(user.mfa_recovery_hashes) == 7
+
+    second = TestClient(app)
+    assert (
+        second.post(
+            "/api/v1/auth/login",
+            json={"email": user.email, "password": PASSWORD},
+            headers=ORIGIN,
+        ).status_code
+        == 200
+    )
+    assert (
+        second.post(
+            "/api/v1/auth/mfa/verify", json={"code": recovery[0]}, headers=ORIGIN
+        ).status_code
+        == 401
+    )
+
+
+def test_oidc_authorization_code_links_only_existing_verified_account(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = account(db, "SUPPLY")
+    monkeypatch.setattr(settings, "oidc_allowed_email_domains", ["example.org"])
+    monkeypatch.setattr(settings, "oidc_post_login_uri", "http://localhost:3000")
+
+    class FakeOidc:
+        available = True
+        provider_name = "Synthetic SSO"
+        nonce = ""
+
+        def authorization_url(self, state: str, nonce: str) -> str:
+            self.nonce = nonce
+            return "https://identity.example/authorize?" + f"state={state}&nonce={nonce}"
+
+        def exchange(self, code: str) -> OidcIdentity:
+            assert code == "synthetic-code"
+            return OidcIdentity(
+                issuer="https://identity.example",
+                subject="subject-123",
+                email=user.email,
+                email_verified=True,
+                nonce=self.nonce,
+                mfa_verified=True,
+            )
+
+    provider = FakeOidc()
+    app.dependency_overrides[get_oidc_client] = lambda: provider
+    client = TestClient(app)
+    config = client.get("/api/v1/auth/sso/config")
+    assert config.json() == {"enabled": True, "provider_name": "Synthetic SSO"}
+    started = client.post("/api/v1/auth/sso/start", headers=ORIGIN)
+    assert started.status_code == 200
+    query = parse_qs(urlparse(started.json()["authorization_url"]).query)
+    state = query["state"][0]
+    assert db.get(OidcState, digest(state))
+    callback = client.get(
+        "/api/v1/auth/sso/callback",
+        params={"code": "synthetic-code", "state": state},
+        follow_redirects=False,
+    )
+    assert callback.status_code == 303
+    assert client.get("/api/v1/auth/me").status_code == 200
+    link = db.scalar(select(ExternalIdentity).where(ExternalIdentity.user_id == user.id))
+    assert link and link.subject == "subject-123"
+    assert db.scalar(
+        select(AuditEvent).where(
+            AuditEvent.action == "auth.sso_login", AuditEvent.actor_id == str(user.id)
+        )
+    )
+    replay = client.get(
+        "/api/v1/auth/sso/callback",
+        params={"code": "synthetic-code", "state": state},
+        follow_redirects=False,
+    )
+    assert replay.status_code == 401
 
 
 @pytest.mark.parametrize("change", ["password", "deactivation"])

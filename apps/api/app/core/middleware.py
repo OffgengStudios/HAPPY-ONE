@@ -2,6 +2,7 @@ import json
 import logging
 import re
 import time
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -10,6 +11,7 @@ from starlette.responses import JSONResponse, Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.core.config import settings
+from app.core.version import RELEASE_VERSION
 
 REQUEST_ID_HEADER = "X-Request-ID"
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
@@ -80,7 +82,11 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
         logger.info(
             json.dumps(
                 {
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "level": "INFO",
                     "service": "happy-api",
+                    "release_version": RELEASE_VERSION,
+                    "environment": settings.app_env,
                     "request_id": request_id,
                     "method": request.method,
                     "route": request.url.path,

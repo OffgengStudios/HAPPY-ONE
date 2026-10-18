@@ -1,13 +1,18 @@
 """Create, validate and restore-test PostgreSQL backups without targeting live data."""
 
+from __future__ import annotations
+
 import argparse
 import hashlib
 import json
 import os
 import re
 import subprocess
+import tempfile
+import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import psycopg
@@ -17,9 +22,27 @@ from sqlalchemy.engine import URL, make_url
 
 from app.core.config import PROJECT_ROOT, settings
 from app.db.local import find_binary_directory
+from app.storage.s3 import get_storage_client
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3.type_defs import ObjectIdentifierTypeDef
 
 BACKUP_ROOT = PROJECT_ROOT / ".local" / "backups"
 RESTORE_DATABASE = re.compile(r"^happy_restore_test_[0-9a-f]{32}$")
+
+
+def alert(event: str, status: str, details: dict[str, object]) -> None:
+    url = settings.alert_webhook_url.get_secret_value()
+    if not url:
+        return
+    payload = json.dumps(
+        {"service": "happy-backup", "event": event, "status": status, **details}
+    ).encode()
+    request = urllib.request.Request(
+        url, data=payload, headers={"Content-Type": "application/json"}, method="POST"
+    )
+    with urllib.request.urlopen(request, timeout=10):
+        pass
 
 
 def postgres_url(value: str) -> URL:
@@ -148,12 +171,88 @@ def restore_test(archive: Path, admin_url: str) -> str:
             connection.execute(sql.SQL("DROP DATABASE {}").format(sql.Identifier(database)))
 
 
+def backup_key(filename: str) -> str:
+    return settings.backup_s3_prefix.strip("/") + "/" + filename
+
+
+def scheduled_backup() -> dict[str, object]:
+    if not settings.backup_s3_bucket:
+        raise ValueError("BACKUP_S3_BUCKET is required for scheduled backups.")
+    client = get_storage_client()
+    with tempfile.TemporaryDirectory(prefix="happy-backup-") as directory:
+        archive = create_backup(Path(directory) / f"happy-{datetime.now(UTC):%Y%m%dT%H%M%SZ}.dump")
+        manifest = verify_backup(archive)
+        manifest_path = archive.with_suffix(archive.suffix + ".json")
+        client.upload_file(str(archive), settings.backup_s3_bucket, backup_key(archive.name))
+        client.upload_file(
+            str(manifest_path), settings.backup_s3_bucket, backup_key(manifest_path.name)
+        )
+    cutoff = datetime.now(UTC).timestamp() - settings.backup_retention_days * 86400
+    deleted = 0
+    paginator = client.get_paginator("list_objects_v2")
+    for page in paginator.paginate(
+        Bucket=settings.backup_s3_bucket, Prefix=settings.backup_s3_prefix.strip("/") + "/"
+    ):
+        expired: list[ObjectIdentifierTypeDef] = [
+            {"Key": item["Key"]}
+            for item in page.get("Contents", [])
+            if item["LastModified"].timestamp() < cutoff
+        ]
+        if expired:
+            client.delete_objects(
+                Bucket=settings.backup_s3_bucket, Delete={"Objects": expired, "Quiet": True}
+            )
+            deleted += len(expired)
+    result = {"key": backup_key(archive.name), "sha256": manifest["sha256"], "deleted": deleted}
+    alert("database_backup", "success", result)
+    return result
+
+
+def restore_latest() -> str:
+    admin_url = settings.restore_admin_url.get_secret_value()
+    if not admin_url:
+        raise ValueError("RESTORE_ADMIN_URL is required for scheduled restore exercises.")
+    client = get_storage_client()
+    response = client.list_objects_v2(
+        Bucket=settings.backup_s3_bucket, Prefix=settings.backup_s3_prefix.strip("/") + "/"
+    )
+    archives = [item for item in response.get("Contents", []) if item["Key"].endswith(".dump")]
+    if not archives:
+        raise ValueError("No provider backup is available for restore testing.")
+    latest = max(archives, key=lambda item: item["LastModified"])["Key"]
+    with tempfile.TemporaryDirectory(prefix="happy-restore-") as directory:
+        archive = Path(directory) / Path(latest).name
+        client.download_file(settings.backup_s3_bucket, latest, str(archive))
+        client.download_file(settings.backup_s3_bucket, latest + ".json", str(archive) + ".json")
+        revision = restore_test(archive, admin_url)
+    alert("database_restore_exercise", "success", {"key": latest, "revision": revision})
+    return revision
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["create", "verify", "restore-test"])
+    parser.add_argument(
+        "action", choices=["create", "verify", "restore-test", "scheduled", "restore-latest"]
+    )
     parser.add_argument("archive", nargs="?", type=Path)
     parser.add_argument("--admin-url", default=os.environ.get("HAPPY_RESTORE_ADMIN_URL", ""))
     arguments = parser.parse_args()
+    if arguments.action == "scheduled":
+        try:
+            result = scheduled_backup()
+            print(f"Provider backup uploaded: {result['key']}")
+        except Exception as error:
+            alert("database_backup", "failure", {"error": type(error).__name__})
+            raise
+        return
+    if arguments.action == "restore-latest":
+        try:
+            revision = restore_latest()
+            print(f"Provider restore exercise passed at migration {revision}.")
+        except Exception as error:
+            alert("database_restore_exercise", "failure", {"error": type(error).__name__})
+            raise
+        return
     if arguments.action == "create":
         archive = create_backup(arguments.archive)
         print(f"Backup created: {archive}")

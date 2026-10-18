@@ -21,9 +21,7 @@ def upgrade() -> None:
     op.add_column("users", sa.Column("mfa_pending_secret_ciphertext", sa.Text()))
     op.add_column(
         "users",
-        sa.Column(
-            "mfa_recovery_hashes", sa.JSON(), nullable=False, server_default="[]"
-        ),
+        sa.Column("mfa_recovery_hashes", sa.JSON(), nullable=False, server_default="[]"),
     )
 
 

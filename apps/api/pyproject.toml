@@ -19,6 +19,11 @@ dependencies = [
   "fastapi>=0.115.0",
   "psycopg[binary]>=3.2.3",
   "pydantic-settings>=2.5.2",
+  "PyJWT[crypto]>=2.10,<3",
+  "opentelemetry-sdk>=1.38,<2",
+  "opentelemetry-exporter-otlp-proto-http>=1.38,<2",
+  "opentelemetry-instrumentation-fastapi>=0.59b0,<1",
+  "opentelemetry-instrumentation-sqlalchemy>=0.59b0,<1",
   "sqlalchemy>=2.0.35",
   "uvicorn[standard]>=0.32.0"
 ]

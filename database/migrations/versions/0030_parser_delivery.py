@@ -17,19 +17,11 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "cv_parser_jobs", sa.Column("next_attempt_at", sa.DateTime(timezone=True))
-    )
-    op.add_column(
-        "cv_parser_jobs", sa.Column("lease_expires_at", sa.DateTime(timezone=True))
-    )
+    op.add_column("cv_parser_jobs", sa.Column("next_attempt_at", sa.DateTime(timezone=True)))
+    op.add_column("cv_parser_jobs", sa.Column("lease_expires_at", sa.DateTime(timezone=True)))
     op.add_column("cv_parser_jobs", sa.Column("lease_owner", sa.String(100)))
-    op.create_index(
-        "ix_cv_parser_jobs_next_attempt_at", "cv_parser_jobs", ["next_attempt_at"]
-    )
-    op.create_index(
-        "ix_cv_parser_jobs_lease_expires_at", "cv_parser_jobs", ["lease_expires_at"]
-    )
+    op.create_index("ix_cv_parser_jobs_next_attempt_at", "cv_parser_jobs", ["next_attempt_at"])
+    op.create_index("ix_cv_parser_jobs_lease_expires_at", "cv_parser_jobs", ["lease_expires_at"])
 
 
 def downgrade() -> None:

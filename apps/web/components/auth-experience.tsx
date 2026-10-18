@@ -10,6 +10,7 @@ import {
   ClipboardList,
   FileClock,
   LoaderCircle,
+  ListTodo,
   LogIn,
   ShieldCheck,
   Users,
@@ -103,6 +104,11 @@ function Header({
 }
 
 function SignIn({ onSuccess }: { onSuccess: () => Promise<unknown> }) {
+  const sso = useQuery({
+    queryKey: ["sso-config"],
+    queryFn: () =>
+      api<{ enabled: boolean; provider_name: string }>("/auth/sso/config"),
+  });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
@@ -125,6 +131,22 @@ function SignIn({ onSuccess }: { onSuccess: () => Promise<unknown> }) {
     } catch (error) {
       setError(error instanceof Error ? error.message : "Sign-in failed.");
     } finally {
+      setBusy(false);
+    }
+  }
+  async function startSso() {
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api<{ authorization_url: string }>(
+        "/auth/sso/start",
+        "POST",
+      );
+      window.location.assign(result.authorization_url);
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : "Single sign-on failed.",
+      );
       setBusy(false);
     }
   }
@@ -210,6 +232,19 @@ function SignIn({ onSuccess }: { onSuccess: () => Promise<unknown> }) {
             </button>
           )}
         </form>
+        {!mfa && sso.data?.enabled && (
+          <div className="mt-6 border-t border-border pt-6">
+            <button
+              className="command w-full"
+              disabled={busy}
+              type="button"
+              onClick={() => void startSso()}
+            >
+              <ShieldCheck className="h-4 w-4" />
+              Sign in with {sso.data.provider_name}
+            </button>
+          </div>
+        )}
       </section>
     </main>
   );
@@ -309,6 +344,12 @@ function Experience() {
         selected?.code === "MANAGEMENT" ? "Attention & Approvals" : "My Work",
       icon: ClipboardList,
       allowed: true,
+    },
+    {
+      id: "tasks",
+      name: "Tasks & Handoffs",
+      icon: ListTodo,
+      allowed: user.permissions.includes("task:view"),
     },
     {
       id: "dashboard",
@@ -517,7 +558,9 @@ function Experience() {
                 Management Platform
               </span>
             </h1>
-            <p className="mt-2 text-xs capitalize">{env.environment} · v{env.releaseVersion}</p>
+            <p className="mt-2 text-xs capitalize">
+              {env.environment} · v{env.releaseVersion}
+            </p>
           </div>
           <div className="border-b border-border bg-white px-5 py-3 md:mb-5 md:rounded-md md:border md:border-white/15 md:bg-white/5 md:p-3">
             {user.workspaces.length > 1 ? (
@@ -569,7 +612,7 @@ function Experience() {
               {error}
             </p>
           )}
-          {active === "work" && user.permissions.includes("task:view") && (
+          {active === "tasks" && user.permissions.includes("task:view") && (
             <WorkWorkspace user={user} workspace={selected?.code ?? ""} />
           )}
           {active === "work" &&
@@ -590,6 +633,7 @@ function Experience() {
               </>
             )}
           {(["employers", "vacancies"].includes(active) ||
+            (active === "work" && selected?.code === "DEMAND") ||
             (active === "dashboard" && selected?.code === "DEMAND") ||
             false) && (
             <DemandWorkspace
@@ -619,8 +663,8 @@ function Experience() {
               <TrainingWorkspace user={user} />
             )}
           {(active === "participants" ||
-            (active === "dashboard" &&
-              selected?.code === "SUPPLY")) &&
+            (active === "work" && selected?.code === "SUPPLY") ||
+            (active === "dashboard" && selected?.code === "SUPPLY")) &&
             (user.permissions.includes("participant:view") ? (
               <SupplyWorkspace
                 key={active + selected?.code + navigationVersion}
@@ -637,8 +681,8 @@ function Experience() {
               </p>
             ))}
           {(["pipeline", "interviews"].includes(active) ||
-            (active === "dashboard" &&
-              selected?.code === "MATCHING")) &&
+            (active === "work" && selected?.code === "MATCHING") ||
+            (active === "dashboard" && selected?.code === "MATCHING")) &&
             (user.permissions.includes("candidate_pipeline:view") ? (
               <MatchingWorkspace
                 key={active + selected?.code + navigationVersion}
@@ -666,8 +710,8 @@ function Experience() {
               </p>
             ))}
           {(["follow-ups", "outcomes", "data-quality"].includes(active) ||
-            (active === "dashboard" &&
-              selected?.code === "MERL")) &&
+            (active === "work" && selected?.code === "MERL") ||
+            (active === "dashboard" && selected?.code === "MERL")) &&
             (user.permissions.includes("follow_up:view") ? (
               <MerlWorkspace
                 key={active + selected?.code + navigationVersion}
@@ -680,8 +724,8 @@ function Experience() {
               </p>
             ))}
           {(["requests", "campaigns", "impact-stories"].includes(active) ||
-            (active === "dashboard" &&
-              selected?.code === "MARKETING")) &&
+            (active === "work" && selected?.code === "MARKETING") ||
+            (active === "dashboard" && selected?.code === "MARKETING")) &&
             (user.permissions.includes("marketing_request:view") ||
             user.permissions.includes("campaign:view") ? (
               <MarketingWorkspace
@@ -698,8 +742,8 @@ function Experience() {
               </p>
             ))}
           {(["performance", "reports"].includes(active) ||
-            (active === "dashboard" &&
-              selected?.code === "MANAGEMENT")) &&
+            (active === "work" && selected?.code === "MANAGEMENT") ||
+            (active === "dashboard" && selected?.code === "MANAGEMENT")) &&
             (user.permissions.includes("report:view") ? (
               <ReportingWorkspace
                 key={active + selected?.code + navigationVersion}

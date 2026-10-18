@@ -5,6 +5,7 @@ from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.errors import register_errors
 from app.core.middleware import RequestIdMiddleware, RequestSizeMiddleware
+from app.core.observability import configure_observability
 from app.core.version import RELEASE_VERSION
 
 
@@ -27,6 +28,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(api_router, prefix="/api/v1")
     register_errors(app)
+    configure_observability(app)
     return app
 
 

@@ -34,11 +34,25 @@ class Settings(BaseSettings):
     s3_region: str = "us-east-1"
     s3_access_key_id: SecretStr = SecretStr("happy_local")
     s3_secret_access_key: SecretStr = SecretStr("happy_local_storage_password")
+    backup_s3_bucket: str = ""
+    backup_s3_prefix: str = "database/"
+    backup_retention_days: int = Field(default=35, ge=7, le=3650)
+    restore_admin_url: SecretStr = SecretStr("")
+    alert_webhook_url: SecretStr = SecretStr("")
+    otel_exporter_otlp_endpoint: str = ""
+    otel_exporter_otlp_headers: dict[str, str] = Field(default_factory=dict)
     auth_session_hours: int = Field(default=8, ge=1, le=168)
     auth_idle_minutes: int = Field(default=30, ge=1, le=1440)
     auth_login_limit: int = Field(default=5, ge=1, le=100)
     auth_ip_limit: int = Field(default=30, ge=1, le=1000)
     auth_window_minutes: int = Field(default=15, ge=1, le=60)
+    oidc_issuer: str = ""
+    oidc_client_id: str = ""
+    oidc_client_secret: SecretStr = SecretStr("")
+    oidc_redirect_uri: str = ""
+    oidc_post_login_uri: str = ""
+    oidc_provider_name: str = "Organizational SSO"
+    oidc_allowed_email_domains: list[str] = Field(default_factory=list)
     demand_vacancy_confirmation_required: bool = True
     supply_privacy_notice_version: str = ""
     supply_onboarding_policy_approved: bool = False
@@ -81,12 +95,31 @@ class Settings(BaseSettings):
             failures.append("IDENTITY_ENCRYPTION_KEY is required")
         if len(self.identity_lookup_key.get_secret_value()) < 32:
             failures.append("IDENTITY_LOOKUP_KEY must contain at least 32 characters")
+        if not self.backup_s3_bucket:
+            failures.append("BACKUP_S3_BUCKET is required")
+        if not self.alert_webhook_url.get_secret_value():
+            failures.append("ALERT_WEBHOOK_URL is required")
+        if not self.otel_exporter_otlp_endpoint.startswith("https://"):
+            failures.append("OTEL_EXPORTER_OTLP_ENDPOINT must use HTTPS")
         hamis_token = self.hamis_integration_token.get_secret_value()
         if hamis_token and len(hamis_token) < 32:
             failures.append("HAMIS_INTEGRATION_TOKEN must contain at least 32 characters")
         employer_token = self.employer_portal_integration_token.get_secret_value()
         if employer_token and len(employer_token) < 32:
             failures.append("EMPLOYER_PORTAL_INTEGRATION_TOKEN must contain at least 32 characters")
+        oidc_values = [
+            self.oidc_issuer,
+            self.oidc_client_id,
+            self.oidc_client_secret.get_secret_value(),
+            self.oidc_redirect_uri,
+            self.oidc_post_login_uri,
+        ]
+        if any(oidc_values) and not all(oidc_values):
+            failures.append("OIDC configuration must be complete when SSO is enabled")
+        if self.oidc_redirect_uri and not self.oidc_redirect_uri.startswith("https://"):
+            failures.append("OIDC_REDIRECT_URI must use HTTPS")
+        if self.oidc_post_login_uri and not self.oidc_post_login_uri.startswith("https://"):
+            failures.append("OIDC_POST_LOGIN_URI must use HTTPS")
         if failures:
             raise ValueError("Unsafe production configuration: " + "; ".join(failures))
         return self

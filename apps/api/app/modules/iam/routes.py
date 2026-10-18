@@ -4,14 +4,19 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, Response
+from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 
+from app.core.config import settings
 from app.core.errors import ApiError
+from app.integrations.oidc.client import OidcClient, get_oidc_client
 from app.modules.iam.dependencies import Current, Database, Principal, require
 from app.modules.iam.models import (
     AuditEvent,
     AuthSession,
+    ExternalIdentity,
     MfaChallenge,
+    OidcState,
     Permission,
     PermissionOverride,
     Role,
@@ -68,7 +73,91 @@ UsersAdmin = Annotated[Principal, Depends(require("user:manage"))]
 RolesAdmin = Annotated[Principal, Depends(require("role:manage"))]
 Auditor = Annotated[Principal, Depends(require("audit:view"))]
 Factor = Annotated[MfaVerifier, Depends(get_mfa_verifier)]
+Oidc = Annotated[OidcClient, Depends(get_oidc_client)]
 Limit = Annotated[int, Query(ge=1, le=100)]
+OIDC_STATE_COOKIE = "happy_oidc_state"
+
+
+@router.get("/auth/sso/config")
+def sso_config(oidc: Oidc) -> dict[str, str | bool]:
+    return {"enabled": oidc.available, "provider_name": oidc.provider_name}
+
+
+@router.post("/auth/sso/start")
+def sso_start(request: Request, response: Response, db: Database, oidc: Oidc) -> dict[str, str]:
+    check_origin(request)
+    if not oidc.available:
+        raise ApiError(503, "SSO_NOT_CONFIGURED", "Single sign-on is not configured.")
+    state = secrets.token_urlsafe(32)
+    nonce = secrets.token_urlsafe(32)
+    db.add(
+        OidcState(
+            state_hash=digest(state),
+            nonce_hash=digest(nonce),
+            expires_at=now() + timedelta(minutes=10),
+        )
+    )
+    db.commit()
+    set_cookie(response, OIDC_STATE_COOKIE, state, 600, True)
+    return {"authorization_url": oidc.authorization_url(state, nonce)}
+
+
+@router.get("/auth/sso/callback")
+def sso_callback(
+    code: str,
+    state: str,
+    request: Request,
+    db: Database,
+    oidc: Oidc,
+) -> RedirectResponse:
+    cookie_state = request.cookies.get(OIDC_STATE_COOKIE, "")
+    if not cookie_state or not secrets.compare_digest(cookie_state, state):
+        raise ApiError(401, "SSO_STATE_INVALID", "Single sign-on state is invalid.")
+    flow = db.scalar(
+        select(OidcState).where(OidcState.state_hash == digest(state)).with_for_update()
+    )
+    if not flow or flow.consumed or flow.expires_at <= now():
+        raise ApiError(401, "SSO_STATE_EXPIRED", "Start single sign-on again.")
+    identity = oidc.exchange(code)
+    if not secrets.compare_digest(flow.nonce_hash, digest(identity.nonce)):
+        raise ApiError(401, "SSO_NONCE_INVALID", "Single sign-on could not be verified.")
+    if not identity.email_verified:
+        raise ApiError(403, "SSO_EMAIL_UNVERIFIED", "A verified work email is required.")
+    domain = identity.email.rsplit("@", 1)[-1]
+    if settings.oidc_allowed_email_domains and domain not in {
+        item.lower() for item in settings.oidc_allowed_email_domains
+    }:
+        raise ApiError(403, "SSO_DOMAIN_DENIED", "This email domain is not permitted.")
+    linked = db.scalar(
+        select(ExternalIdentity).where(
+            ExternalIdentity.provider == identity.issuer,
+            ExternalIdentity.subject == identity.subject,
+        )
+    )
+    user = (
+        db.get(User, linked.user_id)
+        if linked
+        else db.scalar(select(User).where(User.email == identity.email))
+    )
+    if not user or not user.is_active:
+        raise ApiError(403, "SSO_ACCOUNT_NOT_LINKED", "No active HAPPY account is linked.")
+    if user.mfa_enabled and not identity.mfa_verified:
+        raise ApiError(403, "SSO_MFA_REQUIRED", "The identity provider must verify MFA.")
+    if not linked:
+        linked = ExternalIdentity(
+            user_id=user.id,
+            provider=identity.issuer,
+            subject=identity.subject,
+            email_at_link=identity.email,
+        )
+        db.add(linked)
+    linked.last_login_at = now()
+    flow.consumed = True
+    audit(db, "auth.sso_login", user.id, "user", user.id, request)
+    redirect = RedirectResponse(settings.oidc_post_login_uri or "/", status_code=303)
+    redirect.delete_cookie(OIDC_STATE_COOKIE, path="/")
+    issue_session(db, user, request, redirect, mfa_verified=identity.mfa_verified)
+    return redirect
 
 
 @router.post("/auth/login")
@@ -238,6 +327,7 @@ def confirm_mfa(
     principal.user.mfa_pending_secret_ciphertext = None
     principal.user.mfa_recovery_hashes = [recovery_hash(code) for code in recovery]
     principal.user.mfa_enabled = True
+    principal.session.mfa_verified = True
     principal.user.version += 1
     audit(db, "auth.mfa_enabled", principal.user.id, "user", principal.user.id, request)
     db.commit()

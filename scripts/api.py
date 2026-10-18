@@ -5,9 +5,7 @@ from pathlib import Path
 from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[1]
-VENV_PYTHON = (
-    ROOT / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
-)
+VENV_PYTHON = ROOT / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
 PYTHON = str(VENV_PYTHON) if VENV_PYTHON.exists() else sys.executable
 API = ROOT / "apps" / "api"
 TEST_DIRECTORY = ROOT / ".local" / "pytest" / uuid4().hex

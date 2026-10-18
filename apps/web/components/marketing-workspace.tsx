@@ -472,7 +472,7 @@ export function MarketingWorkspace({
             user.permissions.includes("marketing_request:create") && (
               <button
                 className="command primary"
-                disabled={vacancies.isPending}
+                disabled={vacancies.isPending || trainings.isPending}
                 onClick={requestCreate}
               >
                 <Plus className="h-4 w-4" />
@@ -484,7 +484,11 @@ export function MarketingWorkspace({
             user.permissions.includes("campaign:edit") && (
               <button
                 className="command primary"
-                disabled={vacancies.isPending || requests.isPending}
+                disabled={
+                  vacancies.isPending ||
+                  trainings.isPending ||
+                  requests.isPending
+                }
                 onClick={campaignCreate}
               >
                 <Plus className="h-4 w-4" />

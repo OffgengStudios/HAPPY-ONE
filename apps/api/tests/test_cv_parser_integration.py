@@ -9,7 +9,12 @@ from sqlalchemy.orm import Session
 
 from app.db.sandbox import create_test_schema, drop_test_schema
 from app.db.session import get_db
-from app.integrations.cv_parser import ParserOutput, ParserSuggestion, get_cv_parser
+from app.integrations.cv_parser import (
+    ParserOutput,
+    ParserSuggestion,
+    UnavailableCvParser,
+    get_cv_parser,
+)
 from app.main import app
 from app.modules.cv_parser import service
 from app.modules.cv_parser.models import ParserJob, ParserResult, ParserReview
@@ -137,6 +142,11 @@ def test_parser_output_is_advisory_until_explicit_human_review(db: Session) -> N
     response = client.post(f"/api/v1/cv/{document.id}/parse")
     assert response.status_code == 201, response.text
     job = response.json()
+    assert job["status"] == "QUEUED" and job["result"] is None
+    row = db.get(ParserJob, job["id"])
+    assert row
+    service.process_job(db, row, document, participant, FakeParser())
+    job = client.get(f"/api/v1/cv-parser/jobs/{row.id}").json()
     assert job["status"] == "SUCCEEDED"
     assert job["result"]["review_status"] == "PENDING_REVIEW"
     db.refresh(person)
@@ -193,13 +203,15 @@ def test_unconfigured_parser_fails_without_blocking_existing_cv_workflow(db: Ses
     participant, _, document = cv(db, user)
     response = client.post(f"/api/v1/cv/{document.id}/parse")
     assert response.status_code == 201
-    assert response.json()["status"] == "FAILED"
-    assert response.json()["error_code"] == "PARSER_UNAVAILABLE"
+    job = response.json()
+    assert job["status"] == "QUEUED"
+    row = db.get(ParserJob, job["id"])
+    assert row
+    service.process_job(db, row, document, participant, UnavailableCvParser())
+    assert row.status == "FAILED" and row.error_code == "PARSER_UNAVAILABLE"
     db.refresh(participant)
     assert participant.cv_status == "UPLOADED"
-    assert (
-        db.scalar(select(ParserResult).where(ParserResult.job_id == response.json()["id"])) is None
-    )
+    assert db.scalar(select(ParserResult).where(ParserResult.job_id == row.id)) is None
 
 
 def test_parser_execution_and_review_are_server_authorized(db: Session) -> None:
@@ -214,7 +226,10 @@ def test_review_history_is_append_only(db: Session) -> None:
     participant, _, document = cv(db, user)
     app.dependency_overrides[get_cv_parser] = lambda: FakeParser()
     job = client.post(f"/api/v1/cv/{document.id}/parse").json()
-    result = db.get(ParserResult, job["result"]["id"])
+    row = db.get(ParserJob, job["id"])
+    assert row
+    service.process_job(db, row, document, participant, FakeParser())
+    result = db.scalar(select(ParserResult).where(ParserResult.job_id == row.id))
     assert result
     review = ParserReview(
         result_id=result.id,

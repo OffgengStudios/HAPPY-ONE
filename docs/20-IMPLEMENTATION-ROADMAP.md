@@ -12,6 +12,12 @@ production/staging readiness against the explicit provider, policy and live-
 integration gates; it is not a new numbered implementation phase.
 Do not restart IAM or discard work that already exists.
 
+Quality checkpoint 18 Oct 2026: the post-Phase-13 worktree passes the complete
+local gate at migration `0031_oidc_sso`: 273 backend tests, four environment
+tests, 98 authenticated desktop/mobile browser tests, static checks, production
+build and dependency audits. See
+[quality baseline restoration](49-QUALITY-BASELINE-RESTORATION.md).
+
 Historical evidence files retain their names: old Phase 0 is now Phase 1, old
 Phase 1 IAM is now Phase 2, and old Phase 2 Demand is now Phase 3. Existing
 migration revisions, seeds, UUIDs, and completed work are not renumbered.

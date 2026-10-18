@@ -23,20 +23,41 @@ export function SecuritySettings({
   const [secret, setSecret] = useState("");
   const [recovery, setRecovery] = useState<string[]>([]);
   async function enrol() {
-    setBusy("mfa"); setError("");
+    setBusy("mfa");
+    setError("");
     try {
-      const result = await api<{ secret: string }>("/auth/mfa/enrol", "POST", { password });
-      setSecret(result.secret); setPassword("");
-    } catch (value) { setError(value instanceof Error ? value.message : "MFA setup failed."); }
-    finally { setBusy(""); }
+      const result = await api<{ secret: string }>("/auth/mfa/enrol", "POST", {
+        password,
+      });
+      setSecret(result.secret);
+      setPassword("");
+    } catch (value) {
+      setError(value instanceof Error ? value.message : "MFA setup failed.");
+    } finally {
+      setBusy("");
+    }
   }
   async function confirm() {
-    setBusy("mfa"); setError("");
+    setBusy("mfa");
+    setError("");
     try {
-      const result = await api<{ recovery_codes: string[] }>("/auth/mfa/confirm", "POST", { password, code });
-      setRecovery(result.recovery_codes); setSecret(""); setPassword(""); setCode(""); await onRefresh();
-    } catch (value) { setError(value instanceof Error ? value.message : "MFA confirmation failed."); }
-    finally { setBusy(""); }
+      const result = await api<{ recovery_codes: string[] }>(
+        "/auth/mfa/confirm",
+        "POST",
+        { password, code },
+      );
+      setRecovery(result.recovery_codes);
+      setSecret("");
+      setPassword("");
+      setCode("");
+      await onRefresh();
+    } catch (value) {
+      setError(
+        value instanceof Error ? value.message : "MFA confirmation failed.",
+      );
+    } finally {
+      setBusy("");
+    }
   }
   async function revoke(session: Session) {
     if (
@@ -75,10 +96,77 @@ export function SecuritySettings({
       {!user.mfa_enabled && (
         <section className="space-y-4 border-b border-border pb-6">
           <h3 className="font-semibold">Authenticator app</h3>
-          {!secret ? <div className="flex flex-wrap items-end gap-3"><label className="field-label flex-1">Current password<input className="field" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} /></label><button className="command primary" disabled={!password || busy === "mfa"} onClick={() => void enrol()}>Set up MFA</button></div> : <div className="space-y-4"><p className="text-sm">Add this setup key to your authenticator app: <strong className="break-all">{secret}</strong></p><div className="grid gap-3 sm:grid-cols-2"><label className="field-label">Current password<input className="field" type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></label><label className="field-label">Six-digit code<input className="field" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(event) => setCode(event.target.value)} /></label></div><button className="command primary" disabled={!password || !code || busy === "mfa"} onClick={() => void confirm()}>Confirm MFA</button></div>}
+          {!secret ? (
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="field-label flex-1">
+                Current password
+                <input
+                  className="field"
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                />
+              </label>
+              <button
+                className="command primary"
+                disabled={!password || busy === "mfa"}
+                onClick={() => void enrol()}
+              >
+                Set up MFA
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm">
+                Add this setup key to your authenticator app:{" "}
+                <strong className="break-all">{secret}</strong>
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="field-label">
+                  Current password
+                  <input
+                    className="field"
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                  />
+                </label>
+                <label className="field-label">
+                  Six-digit code
+                  <input
+                    className="field"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={code}
+                    onChange={(event) => setCode(event.target.value)}
+                  />
+                </label>
+              </div>
+              <button
+                className="command primary"
+                disabled={!password || !code || busy === "mfa"}
+                onClick={() => void confirm()}
+              >
+                Confirm MFA
+              </button>
+            </div>
+          )}
         </section>
       )}
-      {recovery.length > 0 && <section className="border-y border-border py-5"><h3 className="font-semibold">Recovery codes</h3><p className="mt-1 text-sm text-muted">Store these once. Each code can be used for one sign-in.</p><ul className="mt-3 grid grid-cols-2 gap-2 font-mono text-sm">{recovery.map((item) => <li key={item}>{item}</li>)}</ul></section>}
+      {recovery.length > 0 && (
+        <section className="border-y border-border py-5">
+          <h3 className="font-semibold">Recovery codes</h3>
+          <p className="mt-1 text-sm text-muted">
+            Store these once. Each code can be used for one sign-in.
+          </p>
+          <ul className="mt-3 grid grid-cols-2 gap-2 font-mono text-sm">
+            {recovery.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </section>
+      )}
       <div className="flex items-center justify-between">
         <h3 className="font-semibold">Active sessions</h3>
         <button

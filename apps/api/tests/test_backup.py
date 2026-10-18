@@ -1,4 +1,5 @@
 import json
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -54,3 +55,72 @@ def test_restore_admin_url_must_use_maintenance_database(
             tmp_path / "happy.dump",
             "postgresql://admin:secret@127.0.0.1:5432/happy",
         )
+
+
+def test_scheduled_backup_uploads_verified_pair_and_prunes_retention(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    archive = tmp_path / "happy-20261017.dump"
+    archive.write_bytes(b"synthetic")
+    archive.with_suffix(".dump.json").write_text("{}", encoding="utf-8")
+    client = MagicMock()
+    client.get_paginator.return_value.paginate.return_value = [
+        {
+            "Contents": [
+                {
+                    "Key": "database/expired.dump",
+                    "LastModified": datetime.now(UTC) - timedelta(days=60),
+                },
+                {
+                    "Key": "database/current.dump",
+                    "LastModified": datetime.now(UTC),
+                },
+            ]
+        }
+    ]
+    monkeypatch.setattr(backup.settings, "backup_s3_bucket", "happy-backups")
+    monkeypatch.setattr(backup.settings, "backup_s3_prefix", "database/")
+    monkeypatch.setattr(backup, "get_storage_client", lambda: client)
+    monkeypatch.setattr(backup, "create_backup", lambda output: archive)
+    monkeypatch.setattr(backup, "verify_backup", lambda path: {"sha256": "abc123"})
+    monkeypatch.setattr(backup, "alert", MagicMock())
+
+    result = backup.scheduled_backup()
+
+    assert result == {
+        "key": "database/happy-20261017.dump",
+        "sha256": "abc123",
+        "deleted": 1,
+    }
+    assert client.upload_file.call_count == 2
+    client.delete_objects.assert_called_once()
+
+
+def test_restore_latest_downloads_provider_archive_and_runs_isolated_restore(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client = MagicMock()
+    client.list_objects_v2.return_value = {
+        "Contents": [
+            {
+                "Key": "database/older.dump",
+                "LastModified": datetime.now(UTC) - timedelta(days=1),
+            },
+            {"Key": "database/latest.dump", "LastModified": datetime.now(UTC)},
+        ]
+    }
+    monkeypatch.setattr(backup.settings, "backup_s3_bucket", "happy-backups")
+    monkeypatch.setattr(backup.settings, "backup_s3_prefix", "database/")
+    monkeypatch.setattr(
+        backup.settings,
+        "restore_admin_url",
+        backup.settings.restore_admin_url.__class__("postgresql://admin:secret@db/postgres"),
+    )
+    monkeypatch.setattr(backup, "get_storage_client", lambda: client)
+    monkeypatch.setattr(backup, "restore_test", lambda archive, admin_url: "0031_oidc_sso")
+    monkeypatch.setattr(backup, "alert", MagicMock())
+
+    revision = backup.restore_latest()
+
+    assert revision == "0031_oidc_sso"
+    assert client.download_file.call_count == 2

@@ -2,6 +2,10 @@
 
 Byte counts below describe the original specification package, not current files.
 Implementation evidence added since packaging:
+- [49-QUALITY-BASELINE-RESTORATION.md](49-QUALITY-BASELINE-RESTORATION.md) - clean
+  local quality baseline after Work, MFA, parser-delivery, observability and OIDC.
+- [48-OPERATIONS-READINESS-AUDIT.md](48-OPERATIONS-READINESS-AUDIT.md) - current
+  completeness, integration and production-readiness decision.
 - [23-PHASE-0-DECISIONS.md](23-PHASE-0-DECISIONS.md)
 - [24-PHASE-0-VERIFICATION.md](24-PHASE-0-VERIFICATION.md)
 - [25-PHASE-1-AUTH-IAM.md](25-PHASE-1-AUTH-IAM.md) (now Phase 2)
@@ -25,6 +29,8 @@ Implementation evidence added since packaging:
 - [43-PHASE-13-EMPLOYER-PORTAL-INTEGRATION.md](43-PHASE-13-EMPLOYER-PORTAL-INTEGRATION.md)
 - [44-COMPLETION-AUDIT-FOLLOW-UP.md](44-COMPLETION-AUDIT-FOLLOW-UP.md)
 - [45-RENDER-NEON-DEPLOYMENT.md](45-RENDER-NEON-DEPLOYMENT.md)
+- [46-MASTER-IMPLEMENTATION-AUDIT.md](46-MASTER-IMPLEMENTATION-AUDIT.md)
+- [47-VERSIONING-AND-RELEASES.md](47-VERSIONING-AND-RELEASES.md)
 
 Use the revised [roadmap](20-IMPLEMENTATION-ROADMAP.md) for current phase numbers.
 

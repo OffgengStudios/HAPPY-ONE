@@ -84,6 +84,9 @@ def test_production_accepts_explicit_secure_configuration() -> None:
         s3_secret_access_key="unique-object-storage-secret",
         identity_encryption_key="generated-fernet-key",
         identity_lookup_key="independent-lookup-secret-at-least-32-characters",
+        backup_s3_bucket="happy-production-backups",
+        alert_webhook_url="https://alerts.example.org/happy",
+        otel_exporter_otlp_endpoint="https://telemetry.example.org",
     )
 
     assert configured.app_env == "production"
