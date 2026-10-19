@@ -4,8 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HAPPY Youth Employment Programme</title>
-  <meta name="api-endpoint" content="https://script.google.com/macros/s/AKfycbzuzIGPq-WswotR1RpKBIsQfDchf_snITxQQiojZBu5nIaDAMHej6U1oPv-qPLe47lw/exec" />
-  <meta name="google-client-id" content="" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -788,151 +786,25 @@
 <main>
 
   <!-- ════ ENTRY ════ -->
-  <section id="screen-entry" class="hidden" aria-label="Welcome screen">
-    <div class="hero">
-      <div class="hero-icon" aria-hidden="true">
-        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-        </svg>
-      </div>
-      <h1>Welcome to HAPPY</h1>
-      <p>Connecting Ghana's youth with employment opportunities</p>
-    </div>
 
-    <div style="display:flex;flex-direction:column;gap:.75rem;">
-      <button class="choice-card" onclick="showScreen('screen-consent')">
-        <div class="choice-icon" aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-            <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
-          </svg>
-        </div>
-        <div style="flex:1;">
-          <div class="choice-title">New Participant</div>
-          <div class="choice-sub">Register and give your consent</div>
-        </div>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-      </button>
-
-      <button class="choice-card" onclick="showScreen('screen-lookup')">
-        <div class="choice-icon" aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-        </div>
-        <div style="flex:1;">
-          <div class="choice-title">Returning Participant</div>
-          <div class="choice-sub">Continue your registration</div>
-        </div>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-      </button>
-    </div>
-  </section>
 
   <!-- ════ LOOKUP ════ -->
-  <section id="screen-lookup" class="hidden" aria-label="Find your record">
-    <div class="card">
-      <div class="screen-head">
-        <button class="btn-back" onclick="showScreen('screen-entry')" aria-label="Back">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-        <h2>Continue Registration</h2>
-      </div>
-      <p style="font-size:.875rem;color:var(--text-2);margin-bottom:1rem;line-height:1.55;">Enter your HAPPY ID, phone number, or paste the link from your SMS or email.</p>
-      <div class="fld" style="margin-bottom:1rem;">
-        <label class="lbl" for="lookup-input">HAPPY ID / Phone / Link</label>
-        <input id="lookup-input" class="inp" type="text" autocomplete="off" placeholder="e.g. HAPPY-2026-000001 or paste link" />
-      </div>
-      <div id="lookup-status" class="status-msg hidden" style="margin-bottom:.875rem;" role="alert"></div>
-      <button class="btn btn-primary" style="width:100%;" onclick="handleLookupSubmit()">Find My Record</button>
-    </div>
-  </section>
 
+
+<aside class="card" style="margin-bottom:1rem;" aria-label="Local draft">
+  <p id="draft-status" role="status">Your unfinished form stays in this browser tab.</p>
+  <div id="draft-controls"><label><input type="checkbox" id="persist-draft"> Keep this draft on this device for up to 24 hours</label>
+  <button type="button" id="discard-draft" class="btn btn-secondary">Discard draft</button>
+  </div>
+</aside>
   <!-- ════ CONSENT ════ -->
-  <section id="screen-consent" class="hidden" aria-label="Consent form">
-    <div class="card">
-      <div class="screen-head">
-        <button class="btn-back" onclick="showScreen('screen-entry')" aria-label="Back">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-        <h2>Consent to Participate</h2>
-      </div>
-
-      <div class="legal-box" role="note" aria-label="Consent information">
-        <h3>Purpose</h3>
-        <p>The HAPPY Programme collects participant data to support training, placement, reporting, and programme improvement. Your data helps us connect Ghana's youth with employment opportunities.</p>
-
-        <h3>Data Collected</h3>
-        <ul>
-          <li>Name, age, sex, contact details, education level, and location</li>
-          <li>Employment status, sector interest, and CV / skills information</li>
-          <li>Disability status, refugee/displaced status, and training details where applicable</li>
-        </ul>
-
-        <h3>Data Sharing</h3>
-        <p>Data may be shared with Jobberman Ghana, Agri-Impact Limited, funding partners (including Mastercard Foundation), and approved data processors for monitoring, evaluation, and programme delivery.</p>
-
-        <h3>Your Rights</h3>
-        <p>You may request access, correction, restriction, or withdrawal of consent at any time by contacting your HAPPY field officer. Privacy Policy: <a href="https://mastercardfdn.org/privacy/" target="_blank" rel="noopener">mastercardfdn.org/privacy</a></p>
-      </div>
-
-      <form id="consent-form" novalidate>
-        <div class="field-stack">
-          <div class="fld">
-            <label class="lbl" for="consent-venue">Venue / Location <span class="req" aria-label="required">*</span></label>
-            <input id="consent-venue" class="inp" type="text" required placeholder="e.g. Accra Community Centre" autocomplete="off" />
-          </div>
-
-          <div class="fld">
-            <label class="lbl" for="consent-name">Full Name <span class="req" aria-label="required">*</span></label>
-            <input id="consent-name" class="inp" type="text" required autocomplete="name" placeholder="First Other Surname" />
-          </div>
-
-          <div class="fld-row">
-            <div class="fld">
-              <label class="lbl" for="consent-phone">Phone <span class="req" aria-label="required">*</span></label>
-              <input id="consent-phone" class="inp" type="tel" required autocomplete="tel" placeholder="0244 000 000" inputmode="numeric" />
-            </div>
-            <div class="fld">
-              <label class="lbl" for="consent-language">Language</label>
-              <select id="consent-language" class="inp">
-                <option value="en">English</option>
-                <option value="tw">Twi</option>
-                <option value="ga">Ga</option>
-                <option value="ee">Ewe</option>
-                <option value="ha">Hausa</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="fld">
-            <label class="lbl" for="consent-email">Email <span class="opt">(optional)</span></label>
-            <input id="consent-email" class="inp" type="email" autocomplete="email" placeholder="your@email.com" />
-          </div>
-
-          <label class="consent-tick">
-            <input id="consent-accepted" type="checkbox" />
-            <span>I agree to participate in the HAPPY Programme and consent to the collection and use of my personal information as described above.</span>
-          </label>
-
-          <div class="fld">
-            <label class="lbl" id="sig-label">Signature <span class="req" aria-label="required">*</span></label>
-            <div class="sig-wrap" id="sig-wrap" role="img" aria-labelledby="sig-label">
-              <canvas id="consent-sig" aria-label="Signature canvas — draw your signature here"></canvas>
-              <div class="sig-footer">
-                <span>Draw your signature above using finger or mouse</span>
-                <button type="button" id="clear-sig" class="btn-clear-sig">Clear</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div id="consent-status" class="status-msg hidden" style="margin-top:1rem;" role="alert"></div>
-
-        <button type="submit" id="consent-submit" class="btn btn-primary" style="width:100%;margin-top:1.25rem;font-size:1rem;">
-          Submit Consent &amp; Continue
-        </button>
+  <section id="screen-consent" class="hidden" aria-label="Programme consent">
+    <div class="card"><h2>HAPPY participant registration</h2>
+      <p>Complete your information below. No sign-in is needed.</p>
+      <div id="privacy-notice" style="white-space:pre-wrap;margin:1.25rem 0;">Loading the programme privacy notice…</div>
+      <form id="consent-form"><label><input id="consent-accepted" type="checkbox" required> I have read the privacy notice and agree to the programme processing described above.</label>
+        <div id="consent-status" class="status-msg hidden" role="alert"></div>
+        <button id="consent-submit" class="btn btn-primary" type="submit" disabled style="margin-top:1rem;">Continue</button>
       </form>
     </div>
   </section>
@@ -1297,7 +1169,7 @@
       <div id="pi-status" class="status-msg hidden" role="alert"></div>
 
       <div style="display:flex;gap:.75rem;padding-bottom:.5rem;">
-        <button type="button" id="withdraw-btn" class="btn-ghost-danger">Withdraw</button>
+
         <button type="submit" id="pi-submit" class="btn btn-primary" style="flex:1;font-size:1rem;">
           Save &amp; Continue
         </button>
@@ -1477,7 +1349,7 @@
           </svg>
           <div style="font-weight:600;font-size:.9375rem;color:var(--text-1);margin-bottom:.25rem;">Tap to select your CV</div>
           <div style="font-size:.8125rem;color:var(--text-3);">PDF or Word document · Max 10 MB</div>
-          <input id="cv-file-input" type="file" style="display:none;" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" aria-label="Select CV file" />
+          <input id="cv-file-input" type="file" style="display:none;" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" aria-label="Select CV file" />
         </label>
 
         <div id="cv-file-selected" class="hidden">
@@ -1487,15 +1359,26 @@
           <span id="cv-file-name" style="font-size:.875rem;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
         </div>
 
+        <button type="button" id="cv-review-btn" class="btn btn-primary" style="margin-top:1rem;">Review registration</button>
         <div id="cv-status" class="status-msg hidden" style="margin-top:.75rem;" role="alert"></div>
       </div>
 
       <div style="margin-top:1.25rem;padding-top:1.125rem;border-top:1px solid var(--border);">
         <p style="font-size:.8125rem;color:var(--text-3);margin-bottom:.5rem;">Don't have a CV with you right now?</p>
         <button id="cv-skip-btn" style="background:none;border:none;cursor:pointer;font-size:.875rem;color:var(--brand);font-weight:600;padding:0;font-family:inherit;">
-          Skip for now — I'll provide it later
+          Continue without a CV
         </button>
       </div>
+    </div>
+  </section>
+
+  <section id="screen-review" class="hidden" aria-label="Review registration">
+    <div class="card"><h2>Review your registration</h2>
+      <p id="review-details" style="white-space:pre-wrap;margin:1rem 0;"></p>
+      <p>Check your information before submitting. The HAPPY team will review it and contact you about next steps.</p>
+      <div id="review-status" class="status-msg hidden" role="alert"></div>
+      <button id="review-edit" type="button" class="btn btn-secondary">Edit information</button>
+      <button id="intake-submit" type="button" class="btn btn-primary">Submit registration</button>
     </div>
   </section>
 
@@ -1515,51 +1398,28 @@
   </section>
 
   <!-- ════ COMPLETE ════ -->
-  <section id="screen-complete" class="hidden" aria-label="Registration complete">
+  <section id="screen-complete" class="hidden" aria-label="Registration received">
     <div class="card outcome-wrap">
       <div class="outcome-icon" style="background:var(--brand-100);" aria-hidden="true">
         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="20 6 9 17 4 12"/>
         </svg>
       </div>
-      <h2 class="outcome-title">You're Registered!</h2>
+      <h2 class="outcome-title">Registration received</h2>
       <p class="outcome-body" style="margin-bottom:.75rem;">
-        Congratulations, <strong id="complete-name">participant</strong>!<br />
-        Your HAPPY Programme registration is complete.
+        <strong id="complete-name">Thank you for submitting your information.</strong><br />
+        The HAPPY team will review your registration. Keep this reference for enquiries.
       </p>
       <div id="complete-participant-id" class="id-badge" style="display:inline-flex;margin-bottom:1rem;"></div>
-      <p class="outcome-body">Our team will be in touch about job matching opportunities.</p>
+      <p class="outcome-body">Contact the HAPPY team if your information changes.</p>
     </div>
   </section>
 
   <!-- ════ WITHDRAWN ════ -->
-  <section id="screen-withdrawn" class="hidden" aria-label="Consent withdrawn">
-    <div class="card outcome-wrap">
-      <div class="outcome-icon" style="background:#f3f4f6;" aria-hidden="true">
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
-        </svg>
-      </div>
-      <h2 class="outcome-title" style="color:#374151;">Consent Withdrawn</h2>
-      <p class="outcome-body">Your consent has been withdrawn and your data will be handled according to our retention policy. If this was a mistake, please contact your HAPPY Programme field officer.</p>
-    </div>
-  </section>
+
 
   <!-- ════ TOKEN INVALID ════ -->
-  <section id="screen-token-invalid" class="hidden" aria-label="Link invalid">
-    <div class="card outcome-wrap">
-      <div class="outcome-icon" style="background:var(--error-bg);" aria-hidden="true">
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--error)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-        </svg>
-      </div>
-      <h2 class="outcome-title">Link Expired or Invalid</h2>
-      <p class="outcome-body" style="margin-bottom:1.5rem;">This registration link is no longer valid. Please contact your field officer for a new link.</p>
-      <button class="btn btn-secondary" style="width:100%;max-width:280px;" onclick="showScreen('screen-entry')">Back to Start</button>
-    </div>
-  </section>
+
 
 </main>
 
@@ -1570,10 +1430,11 @@
 <!-- ── SCRIPTS ── -->
 <script src="js/config.js"></script>
 <script src="js/utils.js"></script>
-<script src="js/state-manager.js"></script>
-<script src="js/api.js"></script>
+
+<script src="js/intake-contract.js"></script>
 <script src="js/router.js"></script>
-<script src="js/form-handler.js"></script>
+<script src="js/form-controls.js"></script>
+<script src="js/public-intake.js"></script>
 
 <script>
 // ── Toast notification ──
@@ -1614,18 +1475,6 @@ function revealEl(id, show) {
 }
 
 // ── Toggle helpers ──
-function handleLookupSubmit() {
-  const q = ($('lookup-input')?.value || '').trim();
-  showStatus('lookup-status', '', '');
-  if (!q) { showStatus('lookup-status', 'Please enter a HAPPY ID, phone number, or link.', 'error'); return; }
-  try {
-    const url = new URL(q);
-    const tok = url.searchParams.get('token');
-    if (tok) { setToken(tok); resolveTokenAndRoute(tok); return; }
-  } catch (_) {}
-  if (/^[0-9a-f]{64}$/i.test(q)) { setToken(q); resolveTokenAndRoute(q); return; }
-  showStatus('lookup-status', 'Please paste the full link from your SMS or email, or contact your field officer for a new link.', 'warn');
-}
 
 function toggleIdFields() {
   const v = $('pi-idType')?.value || '';
@@ -1763,6 +1612,6 @@ window.setText = function(id, text) {
   <span id="toast-message"></span>
 </div>
 
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+
 </body>
 </html>

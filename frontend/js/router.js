@@ -3,16 +3,14 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const SCREENS = [
-  'screen-entry',
-  'screen-lookup',
   'screen-consent',
+  'screen-review',
   'screen-participant-info',
   'screen-capacity-building',
   'screen-cv-upload',
   'screen-awaiting',
   'screen-complete',
   'screen-withdrawn',
-  'screen-token-invalid',
 ];
 
 function showScreen(id) {

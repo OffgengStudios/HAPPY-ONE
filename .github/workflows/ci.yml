@@ -11,7 +11,26 @@ permissions:
   contents: read
 
 jobs:
-  foundation:
+  cv-parser:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: CV-Parser-main/cv_system_output
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install isolated HAPPY parser dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-happy.txt pytest httpx
+      - name: Validate HAPPY parser runtime
+        run: python -m compileall -q happy_service.py parser classifier
+      - name: Test HAPPY parser contract
+        run: python -m pytest tests/test_happy_service.py -q
+
+  platform:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -37,6 +56,7 @@ jobs:
       S3_BUCKET: happy-test-private
       S3_ACCESS_KEY_ID: happy_local
       S3_SECRET_ACCESS_KEY: happy_local_storage_password
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/HAPPY_PLATFORM_CODEX/.local/browsers
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -55,10 +75,11 @@ jobs:
           python -m venv .venv
           .venv/bin/python -m pip install --upgrade pip
           .venv/bin/python -m pip install -e apps/api[dev]
+          .venv/bin/python -m pip install -r ../CV-Parser-main/cv_system_output/requirements-happy.txt
           pnpm install --frozen-lockfile
       - name: Install browser
         env:
-          PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.local/browsers
+          PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/HAPPY_PLATFORM_CODEX/.local/browsers
         run: pnpm --filter web exec playwright install --with-deps chromium
       - name: Start private object storage
         run: |
@@ -66,10 +87,55 @@ jobs:
           APP_ENV=development pnpm storage:local
       - name: Verify foundation
         run: pnpm verify
+      - name: Public intake browser integration
+        run: python ../scripts/verify-intake.py
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: foundation-browser-results
-          path: HAPPY_PLATFORM_CODEX/apps/web/test-results
+          path: |
+            HAPPY_PLATFORM_CODEX/apps/web/test-results
+            HAPPY_PLATFORM_CODEX/.local/hamis-*.png
+            HAPPY_PLATFORM_CODEX/.local/employer-*.png
           retention-days: 7
+
+  hamis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node --check frontend/js/public-intake.js
+      - run: node --check frontend/js/form-controls.js
+      - run: node --test integration/frontend.test.cjs
+      - run: node scripts/build-intake.mjs hamis
+
+  employer-intake:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node --check portal/src/app.js
+      - run: node --test integration/frontend.test.cjs
+      - run: node scripts/build-intake.mjs employer
+
+  integration-contracts:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: HAPPY_PLATFORM_CODEX
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: python -m pip install -e apps/api[dev] -r ../CV-Parser-main/cv_system_output/requirements-happy.txt reportlab
+      - run: python -m pytest apps/api/tests/test_intake_contract_unit.py apps/api/tests/test_cv_parser_adapter_unit.py -q
+      - run: python -m pytest ../CV-Parser-main/tests-happy -q

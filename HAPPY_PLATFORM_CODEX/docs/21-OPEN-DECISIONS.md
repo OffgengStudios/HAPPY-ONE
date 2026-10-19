@@ -50,14 +50,27 @@ Codex must not silently resolve these as programme policy.
 
 ## Future Integration Contracts
 
+### HAPPY-ONE decisions confirmed by the user
+
+HAMIS is a direct public participant data-collection flow with no participant
+accounts, sign-in, authentication sessions, participant RBAC identities or account
+dashboards. Drafts stay in the browser. HAPPY exposes narrowly scoped intake APIs;
+staff and database credentials never reach either public frontend. HAPPY owns the
+record after submission. Render is intended for staging but has not been set up.
+
+The implementation now defines a versioned stateless parser transport and public
+intake contracts. See [integration contracts](../../docs/INTEGRATION-CONTRACTS.md)
+and [verification and acceptance status](../../docs/INTEGRATION-PROGRESS.md).
+These technical contracts do not approve programme privacy wording, mandatory
+fields, confidence thresholds, MOU rules, retention policy or production providers.
+
 Sequencing is decided: CV Parser Phase 7, HAMIS Phase 12, Employer Portal Phase 13.
-These contracts are not decided and must not be inferred from supplied links:
-- parser request/result schema, job lifecycle, retries, confidence/review policy
+The remaining production acceptance decisions must not be inferred from supplied links:
+- parser confidence thresholds and deployed service acceptance
 - approved participant privacy-notice wording/version and mandatory onboarding fields
-- HAMIS API model, push/pull/webhooks, synchronization/conflict/source-of-truth rules
-- Employer Portal production Apps Script deployment, signature/document handling
-  and staging acceptance (the local submission/mapping contract is implemented)
-- external client credentials, audiences/scopes, revocation, and record-level restrictions
+- deployed public intake abuse-control tuning and staging acceptance
+- Employer Intake document/MOU acceptance policy and staging acceptance
+- machine credential provisioning/rotation for the private parser and retained legacy adapters
 
 Keep staff users separate from future service identities. Header-only spreadsheet
 inspection is reference evidence, not policy approval or permission to import.

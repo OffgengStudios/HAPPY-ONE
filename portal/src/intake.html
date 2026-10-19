@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>HAPPY Employer Intake</title>
+  <meta name="description" content="Share your company and vacancy information with the HAPPY programme.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232361E8'/%3E%3Ctext x='16' y='22' font-family='Arial,sans-serif' font-size='15' font-weight='800' fill='white' text-anchor='middle'%3EH%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="src/styles.css">
+  <script src="src/config.js" defer></script><script src="src/contract.js" defer></script><script src="src/app.js" defer></script>
+</head>
+<body>
+<header><img src="assets/jobberman-logo.jpeg" alt="Jobberman"><img src="assets/mastercard-foundation.webp" alt="Mastercard Foundation"></header>
+<main>
+  <div class="eyebrow">HAPPY programme</div><h1>Opportunities start with your business.</h1>
+  <p>Tell us about your company, partnership interests and vacancies. The HAPPY team will review your application and contact you about next steps.</p>
+  <p id="draft-status" role="status">Unfinished details stay in this browser tab. Reselect documents after reloading.</p>
+  <button type="button" id="discard" class="secondary">Discard draft</button>
+  <div id="status" class="status" role="status" hidden></div>
+  <form id="employer-form">
+    <fieldset id="company"><legend>Company and contact</legend>
+      <div class="grid">
+        <label>Company name<input name="company_name" required maxlength="200" autocomplete="organization"></label>
+        <label>Sector<input name="sector" maxlength="60"></label>
+        <label>Industry<input name="industry" maxlength="60"></label>
+        <label>Website<input name="website" type="url" placeholder="https://example.com"></label>
+        <label>Region<input name="region" maxlength="60"></label><label>District<input name="district" maxlength="60"></label>
+        <label>City / community<input name="city" maxlength="150"></label><label>Address<textarea name="address" maxlength="5000"></textarea></label>
+        <label>Contact name<input name="contact_name" required maxlength="150" autocomplete="name"></label>
+        <label>Contact title<input name="contact_role" maxlength="150"></label>
+        <label>Contact phone<input name="contact_phone" required type="tel" autocomplete="tel"></label>
+        <label>Contact email<input name="contact_email" required type="email" autocomplete="email"></label>
+        <label>Partnership interest<select name="partnership_type"><option value="RECRUITMENT">Recruitment</option><option value="TRAINING">Training</option><option value="COMBINED">Training and recruitment</option></select></label>
+        <label>Proposed start date<input name="partnership_start_date" type="date"></label>
+      </div>
+      <div class="honeypot" aria-hidden="true"><label>Company fax<input name="company_fax" tabindex="-1" autocomplete="off"></label></div>
+      <h2>Programme notice</h2><div id="notice" class="notice">Loading the programme notice…</div>
+      <label class="check"><input name="consent_agreement" type="checkbox" required>I have read the notice and authorize submission of this company and vacancy information for HAPPY review.</label>
+      <label class="check"><input name="consent_contact" type="checkbox" required>The HAPPY team may contact me about this application.</label>
+      <small>Submitting an application does not activate a vacancy or approve an agreement.</small>
+    </fieldset>
+    <fieldset><legend>Vacancies</legend><p>Add one or more roles. Requirements and working conditions help the team review each opportunity.</p><div id="vacancies"></div><button type="button" id="add-vacancy" class="secondary">Add another vacancy</button></fieldset>
+    <fieldset><legend>Supporting documents</legend><p>Attach PDF or DOCX files such as an MOU, agreement or job description. Files are stored privately and checked before staff use.</p>
+      <div class="grid"><label>Document type<select id="document-kind"><option value="MOU">MOU</option><option value="AGREEMENT">Agreement</option><option value="JD">Job description</option><option value="SUPPORTING">Supporting document</option></select></label>
+      <label>Vacancy number for a job description<input id="document-vacancy" type="number" min="1" max="20" value="1"></label></div>
+      <label>Choose document<input id="document-file" type="file" accept=".pdf,.docx"></label><button type="button" id="attach" class="secondary">Attach document</button><ul id="attachments"></ul>
+      <small>Up to five documents; the combined request must fit the configured upload limit.</small>
+    </fieldset>
+    <button type="submit" id="review-button" disabled>Review application</button>
+  </form>
+  <section id="review" class="card" hidden><h2>Review your application</h2><p id="summary" class="summary"></p><p>Check your information above before sending it to HAPPY.</p><button id="submit" type="button">Submit application</button></section>
+  <section id="success" class="card" hidden><h2>Application received</h2><p>Your information has been sent to the HAPPY team for review. Keep this reference for enquiries:</p><p id="receipt" class="summary"></p></section>
+</main>
+<template id="vacancy-template"><div class="vacancy"><h2>Vacancy information</h2><div class="grid">
+  <label>Job title<input name="job_title" required maxlength="200"></label><label>Job location<input name="location" required maxlength="150"></label>
+  <label>Employment type<select name="employment_type"><option value="FULL_TIME">Full time</option><option value="PART_TIME">Part time</option><option value="CONTRACT">Contract</option><option value="APPRENTICESHIP">Apprenticeship</option></select></label>
+  <label>Headcount<input name="openings" type="number" min="1" max="1000" value="1" required></label>
+  <label>Minimum salary (GHS)<input name="salary_min" type="number" min="0" step=".01"></label><label>Maximum salary (GHS)<input name="salary_max" type="number" min="0" step=".01"></label>
+  <label>Salary frequency<select name="salary_frequency"><option value="">Select when providing salary</option><option value="HOURLY">Hourly</option><option value="DAILY">Daily</option><option value="WEEKLY">Weekly</option><option value="BIWEEKLY">Every two weeks</option><option value="MONTHLY">Monthly</option><option value="OTHER">Other</option></select></label>
+  <label>Application deadline<input name="deadline" type="date"></label><label>Work days<input name="work_days" maxlength="150"></label><label>Work hours<input name="work_hours" maxlength="150"></label>
+  <label>Accommodation<select name="accommodation"><option value="">Not specified</option><option value="yes">Available</option><option value="no">Not available</option></select></label>
+  <label>Benefits, one per line<textarea name="benefits" maxlength="5000"></textarea></label>
+  <label>Job description<textarea name="description" maxlength="5000"></textarea></label>
+  <label>Education requirements<textarea name="education" maxlength="5000"></textarea></label><label>Experience requirements<textarea name="experience" maxlength="5000"></textarea></label>
+  <label>Required skills, one per line<textarea name="skills" maxlength="5000"></textarea></label><label>Licenses<textarea name="licenses" maxlength="5000"></textarea></label>
+  <label>Certifications<textarea name="certifications" maxlength="5000"></textarea></label><label>Languages<textarea name="language" maxlength="5000"></textarea></label>
+  <label>Other eligibility requirements<textarea name="eligibility" maxlength="5000"></textarea></label>
+  </div><button type="button" class="secondary">Remove vacancy</button></div></template>
+</body></html>

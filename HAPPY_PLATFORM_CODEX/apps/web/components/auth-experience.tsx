@@ -37,6 +37,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { api, ApiError, Me } from "@/lib/api";
 import { env } from "@/lib/env";
 import { IamAdmin } from "./iam-admin";
+import { IntakeOperations } from "./intake-operations";
 import { SecuritySettings } from "./security-settings";
 import { DemandWorkspace } from "./demand-workspace";
 import { SupplyWorkspace } from "./supply-workspace";
@@ -489,6 +490,12 @@ function Experience() {
       allowed: user.permissions.includes("role:manage"),
     },
     {
+      id: "intake-operations",
+      name: "Integration operations",
+      icon: Inbox,
+      allowed: user.permissions.includes("integration_event:view"),
+    },
+    {
       id: "audit",
       name: "Audit history",
       icon: FileClock,
@@ -758,6 +765,10 @@ function Experience() {
           {active === "security" && (
             <SecuritySettings user={user} onRefresh={() => me.refetch()} />
           )}
+          {active === "intake-operations" &&
+            user.permissions.includes("integration_event:view") && (
+              <IntakeOperations user={user} />
+            )}
           {["users", "roles", "audit"].includes(active) && (
             <IamAdmin key={active} view={active} user={user} />
           )}

@@ -14,6 +14,31 @@ async function login(page: Page, email = "admin@example.org") {
   ).toBeVisible();
 }
 
+test("authorized staff can inspect integration operations", async ({
+  page,
+}) => {
+  await login(page);
+  await navigate(page, "Integration operations");
+  await expect(
+    page.getByRole("heading", { name: "Integration operations", exact: true }),
+  ).toBeVisible();
+  const response = page.waitForResponse(
+    (result) =>
+      result.url().endsWith("/api/v1/intake-operations") &&
+      result.request().method() === "GET",
+  );
+  await page
+    .getByRole("button", { name: "Refresh operations", exact: true })
+    .click();
+  expect((await response).status()).toBe(200);
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
+
 test("login errors are actionable and an account can sign out", async ({
   page,
 }, info) => {
