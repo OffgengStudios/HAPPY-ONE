@@ -1,6 +1,6 @@
 # Phase 7 - CV Parser Integration
 
-Status: **HAPPY-side local acceptance complete; external parser transport pending.**
+Status: **HAPPY-side local acceptance complete; isolated parser transport implemented; staging acceptance pending.**
 
 Date: 11 Oct 2026
 
@@ -68,15 +68,37 @@ private-storage processes stopping; after both services were restored, the two n
 parser journeys passed independently. Do not represent that interrupted combined
 run as a 74-test full-suite pass.
 
-## External Adapter Gate
+## HAPPY Processing Contract
 
-The repository contains a typed `CvParser` adapter boundary and an explicit
-unavailable implementation. It deliberately does not guess an HTTP endpoint,
-authentication method, upload format, response schema, timeout, or retry policy.
+The isolated `happy_service.py` runtime reuses the parser's extraction,
+structured parsing, skills, and classification code without importing the
+standalone candidate API, database, Sheets, matching, or WhatsApp modules.
 
-To finish Phase 7 against the real service, provide the existing CV Parser
-repository or its approved API contract and non-production endpoint credentials.
-The adapter can then be installed behind the existing interface without changing
-jobs, review behavior, participant authority, or frontend workflow.
+- `POST /api/v1/integrations/happy/parse`
+- Authentication: `Authorization: Bearer <HAPPY_PARSER_TOKEN>`; configure the
+  same secret as HAPPY's `CV_PARSER_TOKEN`. Tokens shorter than 32 characters
+  are rejected. Never expose this credential to browser clients.
+- Request JSON: `filename` (1-200 characters), `mime_type` (`application/pdf`
+  or DOCX MIME), and `content_base64` (maximum decoded size 10 MiB).
+- Response JSON: `schema_version: "1"`, `provider`, `model`, and advisory
+  `suggestions` with an allow-listed field, value, and optional confidence in
+  `[0, 1]`. No parser-side candidate or HAPPY domain record is created.
+- File validation: filename extension and MIME must agree; PDF/DOCX structure,
+  archive expansion, page count, and upload size are bounded. Responses use
+  `Cache-Control: no-store`; validation errors do not echo submitted content.
+- Errors: `401` for invalid machine credentials, `413` for an oversized request,
+  and safe `422` responses for invalid or unsupported documents.
+- Retry behavior: parser transport failures remain retryable through the
+  existing durable HAPPY job worker. A malformed response is rejected as a
+  contract error and never becomes a parser result.
+- Versioning: the machine endpoint is under `/api/v1`; schema changes require a
+  compatible versioned contract.
+
+`HttpCvParser` sends the stable filename/MIME/base64 request, authenticates from
+the backend-only `CV_PARSER_TOKEN`, bounds the response, and validates the
+response schema before mapping suggestions into the existing review workflow.
+The local parser HTTP contract and adapter contract are covered by automated
+tests; staging connectivity, credential rotation, outage recovery, and the
+full CV review journey remain deployment acceptance gates.
 
 Do not store parser credentials in documentation or commit them to the repository.

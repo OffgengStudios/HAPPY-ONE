@@ -2,9 +2,9 @@
 logger.py — Structured logging configuration for the entire application.
 """
 import logging
+import os
 import sys
 from pathlib import Path
-from config import settings
 
 
 def get_logger(name: str) -> logging.Logger:
@@ -13,6 +13,11 @@ def get_logger(name: str) -> logging.Logger:
     Logs to both stdout (for containerized environments) and a rotating file.
     """
     logger = logging.getLogger(name)
+
+    if os.environ.get("HAPPY_PROCESSING_ONLY") == "1":
+        return logger
+
+    from config import settings
 
     if logger.handlers:
         return logger  # Already configured
