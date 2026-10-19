@@ -21,6 +21,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import URL, make_url
 
 from app.core.config import PROJECT_ROOT, settings
+from app.core.process import creation_flags
 from app.db.local import find_binary_directory
 from app.storage.s3 import get_storage_client
 
@@ -63,7 +64,7 @@ def run(command: list[str]) -> subprocess.CompletedProcess[str]:
         check=True,
         capture_output=True,
         text=True,
-        creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+        creationflags=creation_flags(),
     )
 
 

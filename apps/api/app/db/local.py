@@ -14,6 +14,7 @@ from pydantic import SecretStr
 from sqlalchemy.engine import make_url
 
 from app.core.config import PROJECT_ROOT
+from app.core.process import creation_flags
 from app.db.setup import SetupSettings, setup_database
 
 LOCAL_ROOT = PROJECT_ROOT / ".local" / "postgres"
@@ -26,7 +27,7 @@ def run_command(command: list[str]) -> None:
         command,
         capture_output=True,
         text=True,
-        creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+        creationflags=creation_flags(),
     )
     if result.stdout:
         print(result.stdout, end="")
@@ -56,7 +57,7 @@ def run_local_database(action: str) -> None:
     bin_directory = find_binary_directory()
     suffix = ".exe" if os.name == "nt" else ""
     pg_ctl = str(bin_directory / f"pg_ctl{suffix}")
-    creationflags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+    process_flags = creation_flags()
     control_command = [pg_ctl, "-D", str(DATA_ROOT)]
 
     if action in {"stop", "status"}:
@@ -73,7 +74,7 @@ def run_local_database(action: str) -> None:
         result = subprocess.run(
             [*control_command, "status"],
             capture_output=True,
-            creationflags=creationflags,
+            creationflags=process_flags,
         )
         running = result.returncode == 0
 

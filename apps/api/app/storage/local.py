@@ -9,6 +9,7 @@ import psutil
 from botocore.exceptions import BotoCoreError, ClientError
 
 from app.core.config import PROJECT_ROOT, settings
+from app.core.process import creation_flags
 from app.storage.setup import setup_bucket
 
 DIRECTORY = PROJECT_ROOT / ".local" / "storage"
@@ -92,9 +93,7 @@ def run(action: str) -> None:
                 stdin=subprocess.DEVNULL,
                 stdout=log,
                 stderr=log,
-                creationflags=(subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS)
-                if os.name == "nt"
-                else 0,
+                creationflags=creation_flags(detached=True),
                 start_new_session=os.name != "nt",
                 env=environment,
             )

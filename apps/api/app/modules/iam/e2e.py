@@ -21,6 +21,7 @@ from sqlalchemy import Engine, create_engine, select
 from sqlalchemy.orm import Session
 
 from app.core.config import API_ROOT, PROJECT_ROOT, settings
+from app.core.process import creation_flags
 from app.db.sandbox import create_test_schema, drop_test_schema, test_schema_url
 from app.integrations.employer_portal.models import EmployerSubmission
 from app.integrations.employer_portal.schemas import PortalSubmission
@@ -465,9 +466,7 @@ def start() -> None:
                 stdin=subprocess.DEVNULL,
                 stdout=log,
                 stderr=log,
-                creationflags=(subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS)
-                if os.name == "nt"
-                else 0,
+                creationflags=creation_flags(detached=True),
                 start_new_session=os.name != "nt",
             )
             worker = subprocess.Popen(
@@ -477,9 +476,7 @@ def start() -> None:
                 stdin=subprocess.DEVNULL,
                 stdout=log,
                 stderr=log,
-                creationflags=(subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS)
-                if os.name == "nt"
-                else 0,
+                creationflags=creation_flags(detached=True),
                 start_new_session=os.name != "nt",
             )
         deadline = time.monotonic() + 30
