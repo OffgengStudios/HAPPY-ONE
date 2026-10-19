@@ -120,9 +120,17 @@ These fields are audit attribution, not authentication or permission grants.
 
 ### Partnerships
 - `GET /organizations/{id}/partnership`
+- `GET /organizations/{id}/partnerships`
 - `POST /organizations/{id}/partnership`
 - `PATCH /partnerships/{id}`
 - `POST /partnerships/{id}/transition`
+- `GET|POST /partnerships/{id}/documents`
+- `POST /partnership-documents/{document_id}/rescan`
+- `GET /partnership-documents/{document_id}/download`
+
+The singular partnership read returns the current/latest period for compatible
+clients; the plural route is authoritative history. Agreement upload, scan retry
+and download require separate document permissions.
 
 ## 5. Vacancies
 
@@ -137,6 +145,13 @@ These fields are audit attribution, not authentication or permission grants.
 - `POST /vacancies/{id}/requirements`
 - `GET /vacancies/{id}/pipeline`
 - `GET /vacancies/{id}/headcount`
+- `GET|POST /vacancies/{id}/job-descriptions`
+- `POST /job-descriptions/{document_id}/rescan`
+- `GET /job-descriptions/{document_id}/download`
+
+Private document responses expose filenames, sizes, versions and scan state, but
+never storage keys or checksums. Downloads fail closed until scanning succeeds,
+verify the stored checksum, disable caching and emit an audit event.
 
 Headcount response should include:
 ```json
@@ -353,8 +368,13 @@ All KPI/dashboard/drilldown requests require an explicit inclusive date range.
 Immediate exports are audited, permission checked and capped at 5,000 evidence
 rows. Persisted asynchronous jobs generate the full available evidence set into
 private object storage. Job inspection/download is requester-scoped. The local
-background executor is replaceable; production queue infrastructure remains a
-deployment decision rather than part of the API contract.
+API only commits the job; a standalone database-backed worker leases it, retries
+transient failures with bounded backoff and recovers expired leases after restart.
+
+HAMIS ingestion follows the same commit-first boundary. A successful POST returns
+the encrypted event in `RECEIVED`; the worker later moves it through `PROCESSING`
+to `APPLIED`, `NEEDS_REVIEW` or `FAILED`. Employer Portal conversion remains an
+explicit staff decision and is not performed by the background worker.
 
 ## 16. Audit
 

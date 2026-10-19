@@ -77,6 +77,18 @@ export const contactFields: Field[] = [
   { key: "notes", label: "Notes", type: "textarea", max: 5000 },
 ];
 export const partnershipFields: Field[] = [
+  {
+    key: "partnership_type",
+    label: "Partnership type",
+    type: "select",
+    required: true,
+    options: ["TRAINING", "RECRUITMENT", "COMBINED"].map((value) => ({
+      value,
+      label: value,
+    })),
+  },
+  { key: "start_date", label: "Start date", type: "date", required: true },
+  { key: "end_date", label: "End date", type: "date" },
   { key: "mou_required", label: "MOU required", type: "checkbox" },
   { key: "priority", label: "Action priority", type: "select", required: true },
   {

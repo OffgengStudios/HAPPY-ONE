@@ -113,12 +113,12 @@ services:
         value: https://happy-platform-web.onrender.com/api/v1
 
   - type: worker
-    name: happy-cv-parser-worker
+    name: happy-background-worker
     branch: development
     runtime: docker
     dockerContext: .
     dockerfilePath: ./infra/deployment/api.Dockerfile
-    dockerCommand: python -m app.modules.cv_parser.worker
+    dockerCommand: python -m app.workers.operations
     autoDeployTrigger: checksPass
     envVars:
       - key: APP_ENV
@@ -157,6 +157,12 @@ services:
         sync: false
       - key: CV_PARSER_TOKEN
         sync: false
+      - key: BACKGROUND_JOB_MAX_ATTEMPTS
+        value: "5"
+      - key: BACKGROUND_JOB_LEASE_SECONDS
+        value: "300"
+      - key: BACKGROUND_WORKER_POLL_SECONDS
+        value: "2"
 
   - type: cron
     name: happy-daily-database-backup

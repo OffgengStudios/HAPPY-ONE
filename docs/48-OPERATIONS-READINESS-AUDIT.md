@@ -30,21 +30,21 @@ required records and operational controls remain incomplete.
 
 ### Materially incomplete
 
-- No live HAMIS/Portal forwarding, deployed credentials, durable retries,
-  reconciliation, alerting or staging UAT.
+- No live HAMIS/Portal forwarding, deployed credentials, alerting or staging
+  reconciliation UAT.
 - HAMIS only auto-applies basic new intake. Existing participant updates, consent,
   training and placement stop at review; full mapping and conflict rules are absent.
 - Portal conversion does not operationalize signature/document IDs, return status,
   map acquisition lead, or model partnership type.
-- No dedicated versioned JD document. Vacancy description is mutable text and
-  `Document` is participant/CV-specific.
-- Partnership is one row per organization and has no Training, Recruitment, or
-  combined partnership classification.
+- Partnership history/types and private versioned agreement/JD records are now
+  implemented locally in migration `0032_partner_docs`; provider scanner and
+  staging document UAT remain open.
 - No dedicated youth engagement/outreach and source-attribution domain.
 - Task/Handoff targets are unconstrained polymorphic UUIDs. Notifications are
   in-app only, without delivery, escalation or retry history.
 - The central web app has no PWA manifest/service worker.
-- Report jobs persist state but run in FastAPI `BackgroundTasks`.
+- Report, parser and HAMIS jobs use a standalone PostgreSQL-leased worker with
+  bounded retry and restart recovery; provider execution UAT remains open.
 - No verified production monitoring, backup schedule/restore, scanner, parser,
   identity provider or hosted deployment.
 - The post-audit remediation restores Ruff, strict mypy and the full authenticated
@@ -53,7 +53,8 @@ required records and operational controls remain incomplete.
 ### Highest risks
 
 1. **P0:** no live end-to-end integration, recovery, reconciliation or conflicts.
-2. **P0:** partnership history/types and JD versions cannot represent requirements.
+2. **P1:** new agreement/JD document workflows still need provider scanner and
+   staging UAT.
 3. **P1:** live provider and integration acceptance is still outstanding despite
    the restored local quality baseline.
 4. **P0:** no verified provider backup, restore, monitoring or alert routing.
@@ -103,8 +104,8 @@ successful run. See [the remediation evidence](49-QUALITY-BASELINE-RESTORATION.m
 | API/Foundation | Implemented and verified | `/api/v1`, migrations, tests | Hosted runtime | P1 | Reviewed staging deploy/migrate/smoke pass |
 | Dashboard | Partial | Role workspaces/reporting | Accuracy/UAT refresh | P1 | Role figures reconcile to seeded DB |
 | Employers | Verified locally | Demand models/API/tests | Rich engagement history | P2 | Ownership/duplicate UAT passes |
-| Partnerships | Partial | Lifecycle fields | One per employer; no type/files | P0 | Multiple dated typed agreements with evidence |
-| Jobs/JDs | Partial | Vacancy/history | No JD file/version/publication record | P0 | Immutable secure JD versions and approvals |
+| Partnerships | Verified locally | Typed periods/private versions | Provider/UAT | P1 | Staging scan/download evidence passes |
+| Jobs/JDs | Verified locally | Immutable private JD versions | Approval/publication UAT | P1 | Staging versions and approvals pass |
 | Participants | Verified locally | Person/Participant/tests | Merge and approved policy | P1 | Controlled merge and policy UAT |
 | Consent | Partial | Version/status/method | No evidence document | P0 | Private evidence, withdrawal and HAMIS reconciliation |
 | CVs | Partial | Versioned files/parser review | Real providers and restart UAT | P1 | Scanner/parser E2E; no auto-overwrite |
@@ -187,15 +188,12 @@ The modular monolith is appropriate. Shared UUID records, versioned API,
 transactions, optimistic versions, provenance, audit actors and external references
 are strong. Required corrections are:
 
-1. Make Organization-Partnership one-to-many with controlled type and dates.
-2. Add generic private Document/DocumentVersion ownership or dedicated partnership
-   and JD version records; do not overload CV rows.
-3. Add integration attempts, next-attempt, terminal error, batch and resolution.
-4. Add field-level conflict records and authorized resolution history.
-5. Give Task/Handoff entity targets a controlled integrity strategy.
-6. Add YouthEngagementActivity and SourceAttribution.
-7. Add immutable ReportRun/ReportSnapshot metadata.
-8. Link Consent to private evidence and retention/disposal state.
+1. Add integration attempts, next-attempt, terminal error, batch and resolution.
+2. Add field-level conflict records and authorized resolution history.
+3. Give Task/Handoff entity targets a controlled integrity strategy.
+4. Add YouthEngagementActivity and SourceAttribution.
+5. Add immutable ReportRun/ReportSnapshot metadata.
+6. Link Consent to private evidence and retention/disposal state.
 
 ```mermaid
 erDiagram
@@ -290,17 +288,16 @@ retention/deletion and disaster recovery.
 
 ### P0 - Production blockers
 
-1. Implement partnership type/history and secure JD/document versions.
-2. Approve HAMIS mappings/ownership/conflicts/consent evidence and conversions.
-3. Complete Portal lead/type/document/status mapping and durable recovery.
-4. Validate the official M&E workbook with golden datasets and signed totals.
-5. Provision staging providers, alerts, backups and a recorded restore exercise.
+1. Approve HAMIS mappings/ownership/conflicts/consent evidence and conversions.
+2. Complete Portal lead/type/document/status mapping and durable recovery.
+3. Validate the official M&E workbook with golden datasets and signed totals.
+4. Provision staging providers, alerts, backups and a recorded restore exercise.
 
 ### P1 - MVP requirements
 
 - Youth Engagement/source attribution.
 - Task/Handoff target integrity and escalation.
-- Restart-safe parser, report and integration processing.
+- Staging restart/retry acceptance for parser, report and integration processing.
 - Staging SSO/MFA recovery and deactivation UAT.
 - PWA installability and explicit offline policy.
 - Duplicate merge/external-reference reassignment.

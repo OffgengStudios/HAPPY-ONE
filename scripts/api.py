@@ -48,6 +48,7 @@ COMMANDS = {
     "storage-setup": (API, ["-m", "app.storage.setup"]),
     "iam-bootstrap": (API, ["-m", "app.modules.iam.bootstrap"]),
     "cv-parser-worker": (API, ["-m", "app.modules.cv_parser.worker"]),
+    "background-worker": (API, ["-m", "app.workers.operations"]),
 }
 
 

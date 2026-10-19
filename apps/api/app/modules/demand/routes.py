@@ -2,15 +2,19 @@ from datetime import timedelta
 from typing import Annotated, Any, Literal
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, File, Form, Query, Request, Response, UploadFile
 from sqlalchemy import func, select
 
 from app.core.config import settings
+from app.core.errors import ApiError
+from app.modules.demand import files
 from app.modules.demand import service as s
 from app.modules.demand.models import (
     Contact,
+    JobDescriptionVersion,
     Organization,
     Partnership,
+    PartnershipDocument,
     ReferenceData,
     Requirement,
     Vacancy,
@@ -29,6 +33,7 @@ from app.modules.demand.schemas import (
     VacancyCreate,
     VacancyPatch,
     VacancyTransition,
+    Version,
     json_value,
     normalize_phone,
     normalized_name,
@@ -47,12 +52,84 @@ ContactEdit = Annotated[
 ]
 PartnerRead = Annotated[Principal, Depends(require("partnership:view"))]
 PartnerEdit = Annotated[Principal, Depends(require("partnership:edit", "partnership:view"))]
+PartnerDocumentRead = Annotated[Principal, Depends(require("partnership_document:view"))]
+PartnerDocumentEdit = Annotated[
+    Principal, Depends(require("partnership_document:view", "partnership_document:edit"))
+]
+PartnerDocumentDownload = Annotated[
+    Principal,
+    Depends(require("partnership_document:view", "partnership_document:download")),
+]
 VacRead = Annotated[Principal, Depends(require("vacancy:view"))]
 VacCreate = Annotated[Principal, Depends(require("vacancy:create", "vacancy:view"))]
 VacEdit = Annotated[Principal, Depends(require("vacancy:edit", "vacancy:view"))]
+JobDescriptionRead = Annotated[Principal, Depends(require("job_description:view"))]
+JobDescriptionEdit = Annotated[
+    Principal, Depends(require("job_description:view", "job_description:edit"))
+]
+JobDescriptionDownload = Annotated[
+    Principal, Depends(require("job_description:view", "job_description:download"))
+]
 Workspace = Annotated[Principal, Depends(require("workspace_demand:view"))]
 Limit = Annotated[int, Query(ge=1, le=100)]
 Search = Annotated[str, Query(max_length=200)]
+
+
+def _private_download(
+    db: Database,
+    document: PartnershipDocument | JobDescriptionVersion,
+    actor: Principal,
+    request: Request,
+    event_code: str,
+) -> Response:
+    if document.archived_at or document.scan_status != "AVAILABLE":
+        raise ApiError(409, "FILE_SCAN_PENDING", "This document is not available for download.")
+    content = files.verified_bytes(document)
+    audit(
+        db,
+        event_code,
+        actor.user.id,
+        document.__tablename__,
+        document.id,
+        request,
+        changes={"version_number": document.version_number},
+    )
+    db.commit()
+    return Response(
+        content,
+        media_type=document.mime_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{document.original_filename}"',
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+def _rescan_document(
+    db: Database,
+    document: PartnershipDocument | JobDescriptionVersion,
+    version: int,
+    actor: Principal,
+    request: Request,
+    event_code: str,
+) -> dict[str, Any]:
+    s.writable(document, version)
+    if document.scan_status != "SCANNING":
+        raise ApiError(
+            409, "INVALID_STATUS_TRANSITION", "Only scan-pending documents can be rescanned."
+        )
+    document.scan_status = files.scan(files.verified_bytes(document))
+    s.changed(document, actor.user.id)
+    s.persist(
+        db,
+        actor,
+        request,
+        document,
+        event_code,
+        details={"scan_status": document.scan_status},
+    )
+    return files.public_view(document)
 
 
 @router.get("/organizations")
@@ -208,11 +285,38 @@ def contact_edit(
 @router.get("/organizations/{identifier}/partnership")
 def partnership_detail(identifier: UUID, db: Database, actor: PartnerRead) -> dict[str, Any]:
     s.get_record(db, Organization, identifier)
-    row = db.scalar(select(Partnership).where(Partnership.organization_id == identifier))
+    row = db.scalar(
+        select(Partnership)
+        .where(Partnership.organization_id == identifier, Partnership.archived_at.is_(None))
+        .order_by(Partnership.start_date.desc(), Partnership.created_at.desc())
+        .limit(1)
+    )
     if not row:
         s.fail("RECORD_NOT_FOUND", "This employer has no partnership.", 404)
     assert row
     return s.partnership_view(row)
+
+
+@router.get("/organizations/{identifier}/partnerships")
+def partnerships(
+    identifier: UUID,
+    db: Database,
+    actor: PartnerRead,
+    limit: Limit = 25,
+    cursor: str | None = None,
+) -> dict[str, Any]:
+    s.get_record(db, Organization, identifier)
+    page = page_query(
+        select(Partnership).where(Partnership.organization_id == identifier),
+        Partnership,
+        db,
+        limit,
+        cursor,
+    )
+    return {
+        "items": [s.partnership_view(row) for row in page["rows"]],
+        "next_cursor": page["next_cursor"],
+    }
 
 
 @router.post("/organizations/{identifier}/partnership", status_code=201)
@@ -220,11 +324,10 @@ def partnership_create(
     identifier: UUID, data: PartnershipFields, db: Database, actor: PartnerEdit, request: Request
 ) -> dict[str, Any]:
     s.organization_exists(db, identifier, True)
-    if db.scalar(select(Partnership.id).where(Partnership.organization_id == identifier)):
-        s.fail("PARTNERSHIP_EXISTS", "Update the existing employer relationship.")
     s.assignable(db, data.owner_id, "workspace_demand:view")
     row = Partnership(
         **data.model_dump(),
+        partnership_code="PAR-" + uuid4().hex[:12].upper(),
         organization_id=identifier,
         created_by=actor.user.id,
         owner_assigned_at=now() if data.owner_id else None,
@@ -232,6 +335,89 @@ def partnership_create(
     db.add(row)
     s.persist(db, actor, request, row, "partnership.created")
     return s.partnership_view(row)
+
+
+@router.get("/partnerships/{identifier}/documents")
+def partnership_documents(
+    identifier: UUID,
+    db: Database,
+    actor: PartnerDocumentRead,
+    limit: Limit = 25,
+    cursor: str | None = None,
+) -> dict[str, Any]:
+    s.get_record(db, Partnership, identifier)
+    page = page_query(
+        select(PartnershipDocument).where(PartnershipDocument.partnership_id == identifier),
+        PartnershipDocument,
+        db,
+        limit,
+        cursor,
+    )
+    return {
+        "items": [files.public_view(row) for row in page["rows"]],
+        "next_cursor": page["next_cursor"],
+    }
+
+
+@router.post("/partnerships/{identifier}/documents", status_code=201)
+def partnership_document_upload(
+    identifier: UUID,
+    db: Database,
+    actor: PartnerDocumentEdit,
+    request: Request,
+    file: Annotated[UploadFile, File()],
+    version: Annotated[int, Form(ge=1)],
+) -> dict[str, Any]:
+    row = s.get_record(db, Partnership, identifier, True)
+    s.writable(row, version)
+    content = file.file.read(settings.file_max_bytes + 1)
+    document = files.upload(
+        db,
+        PartnershipDocument,
+        "partnership_id",
+        row.id,
+        "partnerships/mou",
+        content,
+        file.filename or "",
+        file.content_type or "",
+        actor.user.id,
+    )
+    s.changed(row, actor.user.id)
+    s.persist(
+        db,
+        actor,
+        request,
+        row,
+        "partnership.document_uploaded",
+        details={"document_id": str(document.id), "scan_status": document.scan_status},
+    )
+    return files.public_view(document)
+
+
+@router.get("/partnership-documents/{identifier}/download")
+def partnership_document_download(
+    identifier: UUID,
+    db: Database,
+    actor: PartnerDocumentDownload,
+    request: Request,
+) -> Response:
+    document = s.get_record(db, PartnershipDocument, identifier)
+    s.get_record(db, Partnership, document.partnership_id)
+    return _private_download(db, document, actor, request, "partnership.document_downloaded")
+
+
+@router.post("/partnership-documents/{identifier}/rescan")
+def partnership_document_rescan(
+    identifier: UUID,
+    values: Version,
+    db: Database,
+    actor: PartnerDocumentEdit,
+    request: Request,
+) -> dict[str, Any]:
+    document = s.get_record(db, PartnershipDocument, identifier, True)
+    return _rescan_document(
+        db, document, values.version, actor, request, "partnership.document_scan_completed"
+    )
 
 
 @router.patch("/partnerships/{identifier}")
@@ -252,11 +438,23 @@ def partnership_edit(
     s.assignable(db, data.owner_id, "workspace_demand:view")
     before = {
         key: json_value(getattr(row, key))
-        for key in ("mou_required", "mou_sent_at", "mou_signed_at", "owner_id", "priority")
+        for key in (
+            "partnership_type",
+            "start_date",
+            "end_date",
+            "mou_required",
+            "mou_sent_at",
+            "mou_signed_at",
+            "owner_id",
+            "priority",
+        )
     }
     if row.owner_id != data.owner_id:
         row.owner_assigned_at = now() if data.owner_id else None
     values = data.model_dump(exclude={"version", "reason"})
+    for key in ("partnership_type", "start_date", "end_date"):
+        if key not in data.model_fields_set:
+            values.pop(key)
     for key, value in values.items():
         setattr(row, key, value)
     s.changed(row, actor.user.id)
@@ -353,6 +551,89 @@ def vacancy_create(
 @router.get("/vacancies/{identifier}")
 def vacancy_detail(identifier: UUID, db: Database, actor: VacRead) -> dict[str, Any]:
     return s.vacancy_view(db, s.get_record(db, Vacancy, identifier))
+
+
+@router.get("/vacancies/{identifier}/job-descriptions")
+def job_descriptions(
+    identifier: UUID,
+    db: Database,
+    actor: JobDescriptionRead,
+    limit: Limit = 25,
+    cursor: str | None = None,
+) -> dict[str, Any]:
+    s.get_record(db, Vacancy, identifier)
+    page = page_query(
+        select(JobDescriptionVersion).where(JobDescriptionVersion.vacancy_id == identifier),
+        JobDescriptionVersion,
+        db,
+        limit,
+        cursor,
+    )
+    return {
+        "items": [files.public_view(row) for row in page["rows"]],
+        "next_cursor": page["next_cursor"],
+    }
+
+
+@router.post("/vacancies/{identifier}/job-descriptions", status_code=201)
+def job_description_upload(
+    identifier: UUID,
+    db: Database,
+    actor: JobDescriptionEdit,
+    request: Request,
+    file: Annotated[UploadFile, File()],
+    version: Annotated[int, Form(ge=1)],
+) -> dict[str, Any]:
+    row = s.get_record(db, Vacancy, identifier, True)
+    s.writable(row, version)
+    content = file.file.read(settings.file_max_bytes + 1)
+    document = files.upload(
+        db,
+        JobDescriptionVersion,
+        "vacancy_id",
+        row.id,
+        "vacancies/job-descriptions",
+        content,
+        file.filename or "",
+        file.content_type or "",
+        actor.user.id,
+    )
+    s.changed(row, actor.user.id)
+    s.persist(
+        db,
+        actor,
+        request,
+        row,
+        "vacancy.job_description_uploaded",
+        details={"document_id": str(document.id), "scan_status": document.scan_status},
+    )
+    return files.public_view(document)
+
+
+@router.get("/job-descriptions/{identifier}/download")
+def job_description_download(
+    identifier: UUID,
+    db: Database,
+    actor: JobDescriptionDownload,
+    request: Request,
+) -> Response:
+    document = s.get_record(db, JobDescriptionVersion, identifier)
+    s.get_record(db, Vacancy, document.vacancy_id)
+    return _private_download(db, document, actor, request, "vacancy.job_description_downloaded")
+
+
+@router.post("/job-descriptions/{identifier}/rescan")
+def job_description_rescan(
+    identifier: UUID,
+    values: Version,
+    db: Database,
+    actor: JobDescriptionEdit,
+    request: Request,
+) -> dict[str, Any]:
+    document = s.get_record(db, JobDescriptionVersion, identifier, True)
+    return _rescan_document(
+        db, document, values.version, actor, request, "vacancy.job_description_scan_completed"
+    )
 
 
 @router.patch("/vacancies/{identifier}")

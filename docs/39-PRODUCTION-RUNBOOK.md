@@ -36,10 +36,13 @@ database as the admin URL; only `postgres` or `template1` is accepted.
 2. Confirm database and object-storage readiness before migration.
 3. Apply `alembic upgrade head` exactly once from a release job.
 4. Start API and web containers as non-root users behind TLS termination.
-5. Verify `/api/v1/health/live`, `/api/v1/health/ready`, sign-in, a permitted read,
+5. Start one or more `python -m app.workers.operations` processes. They use
+   PostgreSQL leases and `SKIP LOCKED`, so stopped workers do not lose committed
+   report, parser or HAMIS jobs and multiple workers may run safely.
+6. Verify `/api/v1/health/live`, `/api/v1/health/ready`, sign-in, a permitted read,
    a denied read, and logout through the public origin.
-6. Confirm the environment label is Production and API responses are not cached.
-7. Observe error rate, latency, authentication failures, DB connections, scanner,
+7. Confirm the environment label is Production and API responses are not cached.
+8. Observe error rate, latency, authentication failures, DB connections, scanner,
    parser and export failures during the release window.
 
 ## Rollback

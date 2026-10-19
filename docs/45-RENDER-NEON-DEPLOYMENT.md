@@ -8,6 +8,9 @@ are not yet provisioned.
 - Neon hosts the authoritative PostgreSQL database.
 - Render runs `happy-platform-api` and `happy-platform-web` from the repository's
   existing non-root Docker images.
+- Render runs `happy-background-worker` from the same API image. PostgreSQL-backed
+  leases drive report exports, CV parser jobs and committed HAMIS events without
+  relying on the API process lifetime.
 - The web service proxies same-origin `/api/v1` requests to the API service. This
   preserves the current secure-cookie and CSRF model.
 - CVs, campaign documents, and prepared report exports require private
@@ -49,14 +52,16 @@ Rotating either key requires the controlled process in the production runbook.
 
 1. Render builds both services. The API pre-deploy command applies `alembic upgrade
    head` to Neon before the new API instance receives traffic.
-2. Verify API liveness and readiness. Readiness requires both Neon and object
+2. Verify the background worker starts after migration and can claim a synthetic
+   report export without duplicate execution.
+3. Verify API liveness and readiness. Readiness requires both Neon and object
    storage, so a 503 is a real configuration failure and must not be bypassed.
-3. From a one-off API shell, bootstrap the first administrator using the existing
+4. From a one-off API shell, bootstrap the first administrator using the existing
    IAM bootstrap command. Enter the password through the command's protected local
    input; never add it to `render.yaml` or build arguments.
-4. Verify the public web origin, sign-in, one permitted request, one denied request,
+5. Verify the public web origin, sign-in, one permitted request, one denied request,
    logout, file storage, and audit events.
-5. Run the release checks, backup evidence, monitoring checks, and approval gates in
+6. Run the release checks, backup evidence, monitoring checks, and approval gates in
    `docs/39-PRODUCTION-RUNBOOK.md` before treating the environment as production.
 
 ## Neon Operations

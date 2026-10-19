@@ -9,13 +9,15 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  Download,
   Pencil,
   Plus,
   RefreshCw,
   Search,
+  Upload,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { all, api, Me, time } from "@/lib/api";
+import { all, api, ApiError, downloadGet, Me, time } from "@/lib/api";
 import {
   contactFields,
   DemandPage,
@@ -843,6 +845,7 @@ function RecordDetail({
       : [
           "Overview",
           ...(can("organization:view") ? ["Employer"] : []),
+          ...(can("job_description:view") ? ["Job descriptions"] : []),
           "Requirements",
           "Changes",
           "Activity",
@@ -1026,6 +1029,9 @@ function RecordDetail({
                 path={path + "/partnership"}
                 fields={partnershipFields}
                 canEdit={can("partnership:edit") && !row.archived_at}
+                canViewDocuments={can("partnership_document:view")}
+                canEditDocuments={can("partnership_document:edit")}
+                canDownloadDocuments={can("partnership_document:download")}
                 blocked={blocked}
                 onEditor={onEditor}
               />
@@ -1039,6 +1045,15 @@ function RecordDetail({
                 vacancy={row}
                 canEdit={editable}
                 onEditor={onEditor}
+              />
+            )}
+            {tab === "Job descriptions" && (
+              <PrivateDocuments
+                path={path + "/job-descriptions"}
+                downloadBase="/job-descriptions"
+                ownerVersion={row.version}
+                canEdit={can("job_description:edit") && !row.archived_at}
+                canDownload={can("job_description:download")}
               />
             )}
             {(tab === "Changes" || tab === "Activity") && (
@@ -1142,18 +1157,28 @@ function PartnershipSection({
   path,
   fields,
   canEdit,
+  canViewDocuments,
+  canEditDocuments,
+  canDownloadDocuments,
   blocked,
   onEditor,
 }: {
   path: string;
   fields: Field[];
   canEdit: boolean;
+  canViewDocuments: boolean;
+  canEditDocuments: boolean;
+  canDownloadDocuments: boolean;
   blocked: boolean;
   onEditor: (editor: Editor) => void;
 }) {
   const query = useQuery({
     queryKey: ["demand", "partnership", path],
     queryFn: () => api<DemandRecord>(path),
+  });
+  const history = useQuery({
+    queryKey: ["demand", "partnership-history", path],
+    queryFn: () => all<DemandRecord>(path + "s"),
   });
   const row = query.data;
   return (
@@ -1169,6 +1194,28 @@ function PartnershipSection({
               <Refresh onClick={() => void query.refetch()} />
               {canEdit && (
                 <>
+                  <button
+                    className="command"
+                    disabled={blocked}
+                    onClick={() =>
+                      onEditor({
+                        title: "New partnership period",
+                        path,
+                        fields: fields.filter(
+                          (field) => field.key !== "reason",
+                        ),
+                        initial: {
+                          partnership_type: "RECRUITMENT",
+                          start_date: new Date().toISOString().slice(0, 10),
+                          mou_required: true,
+                          priority: "NORMAL",
+                        },
+                      })
+                    }
+                  >
+                    <Plus className="h-4 w-4" />
+                    New period
+                  </button>
                   <button
                     className="command"
                     disabled={blocked}
@@ -1239,7 +1286,177 @@ function PartnershipSection({
                 : null,
             }}
           />
+          {canViewDocuments && (
+            <div className="mt-6 border-t border-border pt-5">
+              <h4 className="mb-3 text-sm font-semibold">Agreement versions</h4>
+              <PrivateDocuments
+                path={`/partnerships/${row.id}/documents`}
+                downloadBase="/partnership-documents"
+                ownerVersion={row.version}
+                canEdit={canEdit && canEditDocuments}
+                canDownload={canDownloadDocuments}
+              />
+            </div>
+          )}
+          <div className="mt-6 border-t border-border pt-5">
+            <h4 className="mb-3 text-sm font-semibold">Partnership history</h4>
+            <Feedback pending={history.isPending} error={history.error} />
+            {history.data?.map((period) => (
+              <div className="data-row" key={period.id}>
+                <p className="text-sm font-medium">
+                  {label(period.partnership_type)} · {label(period.status)}
+                </p>
+                <p className="mt-1 text-xs text-muted">
+                  {display(period.start_date)} to{" "}
+                  {display(period.end_date ?? "Present")}
+                </p>
+              </div>
+            ))}
+          </div>
         </>
+      )}
+    </>
+  );
+}
+
+function PrivateDocuments({
+  path,
+  downloadBase,
+  ownerVersion,
+  canEdit,
+  canDownload,
+}: {
+  path: string;
+  downloadBase: string;
+  ownerVersion: number;
+  canEdit: boolean;
+  canDownload: boolean;
+}) {
+  const client = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const query = useQuery({
+    queryKey: ["demand", "private-documents", path],
+    queryFn: () => all<DemandRecord>(path),
+  });
+  async function upload(file: File) {
+    setBusy(true);
+    setError("");
+    const body = new FormData();
+    body.set("version", String(ownerVersion));
+    body.set("file", file);
+    try {
+      await api(path, "POST", body);
+      await Promise.all([
+        query.refetch(),
+        client.invalidateQueries({ queryKey: ["demand", "detail"] }),
+        client.invalidateQueries({ queryKey: ["demand", "partnership"] }),
+      ]);
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "Unable to upload document.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function rescan(row: DemandRecord) {
+    setBusy(true);
+    setError("");
+    try {
+      await api(`${downloadBase}/${row.id}/rescan`, "POST", {
+        version: row.version,
+      });
+      await query.refetch();
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "Unable to rescan document.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function download(row: DemandRecord) {
+    setError("");
+    try {
+      await downloadGet(`${downloadBase}/${row.id}/download`);
+    } catch (reason) {
+      setError(
+        reason instanceof ApiError
+          ? reason.message
+          : "Unable to download document.",
+      );
+    }
+  }
+  return (
+    <>
+      <div className="mb-4 flex justify-end gap-2">
+        <Refresh onClick={() => void query.refetch()} />
+        {canEdit && (
+          <label className="command cursor-pointer">
+            <Upload className="h-4 w-4" />
+            Upload version
+            <input
+              className="sr-only"
+              type="file"
+              accept=".pdf,.docx"
+              disabled={busy}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void upload(file);
+                event.target.value = "";
+              }}
+            />
+          </label>
+        )}
+      </div>
+      <Feedback pending={query.isPending || busy} error={query.error} />
+      {error && (
+        <p role="alert" className="mb-3 text-sm text-red-700">
+          {error}
+        </p>
+      )}
+      {query.data?.map((row) => (
+        <div
+          className="data-row flex items-center justify-between gap-3"
+          key={row.id}
+        >
+          <div className="min-w-0">
+            <p className="break-words text-sm font-medium">
+              Version {display(row.version_number)} ·{" "}
+              {display(row.original_filename)}
+            </p>
+            <p className="mt-1 text-xs text-muted">{label(row.scan_status)}</p>
+          </div>
+          <div className="flex gap-2">
+            {canEdit && row.scan_status === "SCANNING" && (
+              <button
+                className="icon-button"
+                title="Retry scan"
+                aria-label={`Retry scan for ${display(row.original_filename)}`}
+                disabled={busy}
+                onClick={() => void rescan(row)}
+              >
+                <RefreshCw className="h-4 w-4" />
+              </button>
+            )}
+            {canDownload && row.scan_status === "AVAILABLE" && (
+              <button
+                className="icon-button"
+                title="Download"
+                aria-label={`Download ${display(row.original_filename)}`}
+                onClick={() => void download(row)}
+              >
+                <Download className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      ))}
+      {query.data?.length === 0 && (
+        <p className="border-y border-border py-8 text-sm text-muted">
+          No document versions recorded
+        </p>
       )}
     </>
   );

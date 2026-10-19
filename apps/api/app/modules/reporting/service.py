@@ -670,6 +670,8 @@ def export_job_view(row: ReportExportJob) -> dict[str, Any]:
             "row_count",
             "error_code",
             "error_message",
+            "attempt_count",
+            "next_attempt_at",
             "started_at",
             "completed_at",
             "created_at",

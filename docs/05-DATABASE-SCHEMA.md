@@ -237,15 +237,24 @@ At most one active primary contact per organization should be enforced by busine
 
 | Field | Type | Required |
 |---|---|---:|
+| `partnership_code` | string | yes |
 | `organization_id` | UUID | yes |
+| `partnership_type` | enum | yes |
+| `start_date` | date | yes |
+| `end_date` | date | no |
 | `status` | enum | yes |
 | `mou_required` | bool | yes |
 | `mou_sent_at` | timestamptz | no |
 | `mou_signed_at` | timestamptz | no |
-| `mou_document_id` | UUID | no |
 | `owner_id` | UUID | no |
 | `next_action` | string | no |
 | `next_action_due_at` | timestamptz | no |
+
+An organization may have multiple dated partnership periods. Controlled types
+are `TRAINING`, `RECRUITMENT`, and `COMBINED`; end date cannot precede start date.
+Agreement files are immutable versions in `partnership_documents`, keyed by
+`partnership_id + version_number`, with private storage metadata, checksum and
+fail-closed scan status. Storage keys and hashes are never public API fields.
 
 ---
 
@@ -293,6 +302,11 @@ For operational vacancy fill, use `started_headcount` unless the programme expli
 `outstanding_headcount = max(required_headcount - started_headcount, 0)`
 
 Programme placement reporting uses confirmed placement count, not started count.
+
+Uploaded job descriptions are immutable private records in
+`job_description_versions`, keyed by `vacancy_id + version_number`. The mutable
+vacancy description remains operational summary text and cannot replace the
+versioned source document.
 
 ---
 

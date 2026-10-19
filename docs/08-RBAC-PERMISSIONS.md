@@ -46,7 +46,9 @@ Legend:
 |---|---|---|---|---|---|---|---|
 | Employers | E | V-limited | V | V | V-limited | V | A |
 | Partnerships/MOU | E | - | V | V | - | V | A |
+| Partnership documents | E/download | - | - | - | - | V/download | A |
 | Vacancies | E | V | E | V | V | V | A |
+| Job descriptions | E/download | - | V/download | - | - | V/download | A |
 | Participant basic | R | E | V/E workflow | V | R | R/V | A |
 | Participant sensitive | - | permitted | permitted subset | permitted subset | - | restricted | A |
 | CV | - | E | V | V if needed | - | - | A |
@@ -122,3 +124,5 @@ Require specific permissions:
 - `record:hard_delete`
 - `report:sensitive_export`
 - `role:manage`
+- `partnership_document:view`, `partnership_document:edit`, `partnership_document:download`
+- `job_description:view`, `job_description:edit`, `job_description:download`

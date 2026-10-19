@@ -78,6 +78,7 @@ Employer record tabs:
 - Overview
 - Contacts
 - Partnership / MOU
+- Partnership history and agreement versions
 - Vacancies
 - Activity
 - Documents
@@ -96,7 +97,7 @@ Views differ by role.
 
 ### Demand
 Tabs:
-`Overview | Employer | Requirements | Changes | Activity`
+`Overview | Employer | Job descriptions | Requirements | Changes | Activity`
 
 ### Supply
 Tabs:

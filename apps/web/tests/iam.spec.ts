@@ -127,7 +127,9 @@ test("administrator creates and edits a custom role", async ({
     .getByLabel("Role code")
     .fill("REVIEWER_" + info.project.name.toUpperCase());
   await dialog.getByLabel("Role name").fill(name);
-  await dialog.getByLabel("Description").fill("Synthetic browser verification");
+  await dialog
+    .getByLabel("Description", { exact: true })
+    .fill("Synthetic browser verification");
   await dialog.getByLabel("workspace_management:view", { exact: true }).check();
   await dialog.getByRole("button", { name: "Save role" }).click();
   await expect(dialog).not.toBeVisible();

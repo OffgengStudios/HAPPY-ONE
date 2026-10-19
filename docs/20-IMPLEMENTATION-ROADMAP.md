@@ -18,6 +18,20 @@ tests, 98 authenticated desktop/mobile browser tests, static checks, production
 build and dependency audits. See
 [quality baseline restoration](49-QUALITY-BASELINE-RESTORATION.md).
 
+Demand document checkpoint 19 Oct 2026: migration `0032_partner_docs` adds typed,
+date-bounded partnership history and versioned private partnership agreements and
+vacancy job descriptions. The complete local gate passes with 274 backend tests,
+four environment tests and 98 authenticated desktop/mobile browser tests. See
+[partnership and document acceptance](50-PARTNERSHIP-DOCUMENT-ACCEPTANCE.md).
+
+Durable-work checkpoint 19 Oct 2026: migrations `0033_durable_jobs` and
+`0034_hamis_worker` move report exports and HAMIS application out of the API
+process and combine them with the existing leased CV parser runner. PostgreSQL
+leases, bounded retries and expired-lease recovery are implemented; hosted worker
+restart and provider UAT remain open. The complete gate passes with 276 backend,
+four environment and 98 authenticated desktop/mobile browser tests. See
+[durable background processing acceptance](51-DURABLE-BACKGROUND-PROCESSING.md).
+
 Historical evidence files retain their names: old Phase 0 is now Phase 1, old
 Phase 1 IAM is now Phase 2, and old Phase 2 Demand is now Phase 3. Existing
 migration revisions, seeds, UUIDs, and completed work are not renumbered.
@@ -68,8 +82,9 @@ Status: **Local Phase 3 workflow acceptance complete on 07 Oct 2026.** The revie
 fixed related-event authorization in organization activity and preserved actor
 types in activity responses. Full CI passed: 142 backend, four environment,
 and 14 desktop/mobile browser tests; no migration or model drift.
-Private MOU files await secured-file workflow acceptance; placement-derived
-counts await Phase 6. See [historical Demand evidence](26-PHASE-2-DEMAND.md).
+Versioned private MOU and job-description workflows passed local acceptance on
+19 Oct 2026; production scanner/provider acceptance remains open. Placement-derived
+counts were delivered in Phase 6. See [historical Demand evidence](26-PHASE-2-DEMAND.md).
 See [current Demand acceptance and boundaries](29-PHASE-3-DEMAND-ACCEPTANCE.md).
 
 ## Phase 4 - Supply

@@ -60,6 +60,7 @@ def cleanup_report_exports(engine: Engine) -> None:
 def start() -> None:
     schema, url = create_test_schema()
     process = None
+    worker = None
     engine = create_engine(url)
     try:
         encryption_key = Fernet.generate_key().decode()
@@ -469,6 +470,18 @@ def start() -> None:
                 else 0,
                 start_new_session=os.name != "nt",
             )
+            worker = subprocess.Popen(
+                [sys.executable, "-m", "app.workers.operations"],
+                cwd=API_ROOT,
+                env=environment,
+                stdin=subprocess.DEVNULL,
+                stdout=log,
+                stderr=log,
+                creationflags=(subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS)
+                if os.name == "nt"
+                else 0,
+                start_new_session=os.name != "nt",
+            )
         deadline = time.monotonic() + 30
         while True:
             try:
@@ -481,10 +494,19 @@ def start() -> None:
                 time.sleep(0.2)
         print(
             json.dumps(
-                {"schema": schema, "pid": process.pid, "api_url": api_url, "password": password}
+                {
+                    "schema": schema,
+                    "pid": process.pid,
+                    "worker_pid": worker.pid,
+                    "api_url": api_url,
+                    "password": password,
+                }
             )
         )
     except Exception:
+        if worker:
+            worker.terminate()
+            worker.wait(timeout=10)
         if process:
             process.terminate()
             process.wait(timeout=10)
@@ -498,6 +520,14 @@ def start() -> None:
 
 def stop() -> None:
     state = json.loads(sys.stdin.read())
+    try:
+        worker = psutil.Process(state["worker_pid"])
+        if "app.workers.operations" not in worker.cmdline() or worker.cwd() != str(API_ROOT):
+            raise ValueError("Browser worker PID does not identify this project's process.")
+        worker.terminate()
+        worker.wait(timeout=15)
+    except psutil.NoSuchProcess:
+        pass
     try:
         process = psutil.Process(state["pid"])
         if "app.main:app" not in process.cmdline() or process.cwd() != str(API_ROOT):

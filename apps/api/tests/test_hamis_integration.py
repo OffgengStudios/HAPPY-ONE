@@ -1,4 +1,5 @@
 import os
+from contextlib import nullcontext
 from uuid import uuid4
 
 import pytest
@@ -11,6 +12,8 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.sandbox import create_test_schema, drop_test_schema
 from app.db.session import get_db
+from app.integrations.hamis import service
+from app.integrations.hamis import worker as hamis_worker
 from app.integrations.hamis.models import HamisInboundEvent
 from app.main import app
 from app.modules.external_references.models import ExternalReference
@@ -109,6 +112,16 @@ def event(event_id: str, payload: dict, event_type: str = "PARTICIPANT_UPSERT") 
     return {"event_id": event_id, "event_type": event_type, "payload": payload}
 
 
+def process_received(db: Session, event_id: str) -> HamisInboundEvent:
+    row = db.scalar(
+        select(HamisInboundEvent).where(HamisInboundEvent.external_event_id == event_id)
+    )
+    assert row and row.status == "RECEIVED"
+    service.process_event(db, row)
+    db.commit()
+    return row
+
+
 def test_machine_auth_idempotency_provenance_and_update_review(db: Session) -> None:
     unauthenticated = TestClient(app).post(
         "/api/v1/integrations/hamis/events",
@@ -123,12 +136,11 @@ def test_machine_auth_idempotency_provenance_and_update_review(db: Session) -> N
     )
     assert response.status_code == 202
     result = response.json()
-    assert result["status"] == "APPLIED"
-    participant_id = result["participant_id"]
-    stored_event = db.scalar(
-        select(HamisInboundEvent).where(HamisInboundEvent.external_event_id == "queue-device-001")
-    )
-    assert stored_event
+    assert result["status"] == "RECEIVED"
+    stored_event = process_received(db, "queue-device-001")
+    assert stored_event.status == "APPLIED"
+    participant_id = stored_event.participant_id
+    assert participant_id
     assert payload["telephone"] not in stored_event.payload_ciphertext
     assert payload["hamisId"] not in stored_event.payload_ciphertext
 
@@ -147,7 +159,7 @@ def test_machine_auth_idempotency_provenance_and_update_review(db: Session) -> N
             ExternalReference.external_id == payload["hamisId"],
         )
     )
-    assert reference and str(reference.entity_id) == participant_id
+    assert reference and reference.entity_id == participant_id
 
     replay = client.post(
         "/api/v1/integrations/hamis/events", json=event("queue-device-001", payload)
@@ -167,7 +179,8 @@ def test_machine_auth_idempotency_provenance_and_update_review(db: Session) -> N
         json=event("queue-device-002", payload | {"community": "Tema"}),
     )
     assert update.status_code == 202
-    assert update.json()["status"] == "NEEDS_REVIEW"
+    assert update.json()["status"] == "RECEIVED"
+    assert process_received(db, "queue-device-002").status == "NEEDS_REVIEW"
     db.refresh(person)
     assert person.community == "Accra"
 
@@ -188,6 +201,7 @@ def test_duplicate_and_domain_activity_require_review(db: Session) -> None:
         json=event("duplicate-source", participant_payload("020")),
     )
     assert first.status_code == 202
+    assert process_received(db, "duplicate-source").status == "APPLIED"
     duplicate_payload = participant_payload("021") | {
         "telephone": participant_payload("020")["telephone"]
     }
@@ -196,7 +210,7 @@ def test_duplicate_and_domain_activity_require_review(db: Session) -> None:
         json=event("duplicate-candidate", duplicate_payload),
     )
     assert duplicate.status_code == 202
-    assert duplicate.json()["status"] == "NEEDS_REVIEW"
+    assert process_received(db, "duplicate-candidate").status == "NEEDS_REVIEW"
 
     training = client.post(
         "/api/v1/integrations/hamis/events",
@@ -207,7 +221,7 @@ def test_duplicate_and_domain_activity_require_review(db: Session) -> None:
         ),
     )
     assert training.status_code == 202
-    assert training.json()["status"] == "NEEDS_REVIEW"
+    assert process_received(db, "capacity-001").status == "NEEDS_REVIEW"
 
 
 def test_only_admin_can_review_events(db: Session) -> None:
@@ -220,6 +234,7 @@ def test_only_admin_can_review_events(db: Session) -> None:
         ),
     )
     assert created.status_code == 202
+    assert process_received(db, "review-capacity-001").status == "NEEDS_REVIEW"
     event_row = db.scalar(
         select(HamisInboundEvent).where(HamisInboundEvent.status == "NEEDS_REVIEW")
     )
@@ -236,3 +251,35 @@ def test_only_admin_can_review_events(db: Session) -> None:
     )
     assert rejected.status_code == 200
     assert rejected.json()["status"] == "REJECTED"
+
+
+def test_worker_claims_committed_event_and_records_integration_actor(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    response = machine().post(
+        "/api/v1/integrations/hamis/events",
+        json=event("worker-participant-001", participant_payload("031")),
+    )
+    assert response.status_code == 202
+    assert response.json()["status"] == "RECEIVED"
+    monkeypatch.setattr(
+        hamis_worker,
+        "get_session_factory",
+        lambda: lambda: nullcontext(db),
+    )
+    assert hamis_worker.run_once() is True
+    row = db.scalar(
+        select(HamisInboundEvent).where(
+            HamisInboundEvent.external_event_id == "worker-participant-001"
+        )
+    )
+    assert row and row.status == "APPLIED" and row.attempt_count == 1
+    assert row.lease_owner is None and row.participant_id
+    assert db.scalar(
+        select(AuditEvent).where(
+            AuditEvent.action == "hamis.event_processed",
+            AuditEvent.actor_type == "INTEGRATION",
+            AuditEvent.actor_id == "HAMIS",
+            AuditEvent.entity_id == row.id,
+        )
+    )

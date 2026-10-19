@@ -1,8 +1,10 @@
+import io
 import os
 from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from pypdf import PdfWriter
 from sqlalchemy import create_engine, select, update
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
@@ -11,11 +13,20 @@ from app.core.config import settings
 from app.db.sandbox import create_test_schema, drop_test_schema
 from app.db.session import get_db
 from app.main import app
-from app.modules.demand.models import Contact, Partnership, VacancyChange
+from app.modules.demand import files as demand_files
+from app.modules.demand.models import (
+    Contact,
+    JobDescriptionVersion,
+    Partnership,
+    PartnershipDocument,
+    VacancyChange,
+)
 from app.modules.iam.actors import AuditActor
 from app.modules.iam.models import AuditEvent, Permission, PermissionOverride, Role, User
 from app.modules.iam.security import hasher
 from app.modules.iam.service import audit
+from app.modules.supply import files as supply_files
+from app.storage.s3 import get_storage_client
 
 pytestmark = [
     pytest.mark.integration,
@@ -263,6 +274,93 @@ def test_partnership_full_path_and_waiver_audit(db):
         .order_by(AuditEvent.occurred_at.desc())
     )
     assert audit.after_json["reason"] == "Explicit employer exemption"
+
+
+def test_partnership_history_and_private_document_versions(db, monkeypatch):
+    client, _ = login(db)
+    employer = create_employer(client)
+    collection = "/api/v1/organizations/" + employer["id"] + "/partnerships"
+    created = client.post(
+        "/api/v1/organizations/" + employer["id"] + "/partnership",
+        json={
+            "partnership_type": "TRAINING",
+            "start_date": "2027-01-01",
+            "end_date": "2027-12-31",
+            "mou_required": False,
+        },
+    )
+    assert created.status_code == 201, created.text
+    period = created.json()
+    assert period["partnership_type"] == "TRAINING"
+    assert period["partnership_code"].startswith("PAR-")
+    assert len(client.get(collection).json()["items"]) == 2
+    assert (
+        client.post(
+            "/api/v1/organizations/" + employer["id"] + "/partnership",
+            json={
+                "partnership_type": "COMBINED",
+                "start_date": "2027-03-01",
+                "end_date": "2027-02-01",
+                "mou_required": True,
+            },
+        ).status_code
+        == 422
+    )
+
+    output = io.BytesIO()
+    writer = PdfWriter()
+    writer.add_blank_page(width=100, height=100)
+    writer.write(output)
+    content = output.getvalue()
+    monkeypatch.setattr(settings, "file_scan_host", "")
+    upload = client.post(
+        f"/api/v1/partnerships/{period['id']}/documents",
+        data={"version": period["version"]},
+        files={"file": ("agreement.pdf", content, supply_files.PDF)},
+    )
+    assert upload.status_code == 201, upload.text
+    agreement = upload.json()
+    assert agreement["scan_status"] == "SCANNING"
+    assert not {"storage_key", "sha256", "scan_details"} & agreement.keys()
+    assert (
+        client.get(f"/api/v1/partnership-documents/{agreement['id']}/download").status_code == 409
+    )
+    monkeypatch.setattr(demand_files, "scan", lambda content: "AVAILABLE")
+    rescanned = client.post(
+        f"/api/v1/partnership-documents/{agreement['id']}/rescan",
+        json={"version": agreement["version"]},
+    )
+    assert rescanned.status_code == 200
+    downloaded = client.get(f"/api/v1/partnership-documents/{agreement['id']}/download")
+    assert downloaded.status_code == 200 and downloaded.content == content
+    assert downloaded.headers["cache-control"] == "no-store"
+
+    vacancy = create_vacancy(client, employer)
+    job_path = f"/api/v1/vacancies/{vacancy['id']}/job-descriptions"
+    first = client.post(
+        job_path,
+        data={"version": vacancy["version"]},
+        files={"file": ("driver-jd.pdf", content, supply_files.PDF)},
+    )
+    assert first.status_code == 201, first.text
+    second = client.post(
+        job_path,
+        data={"version": vacancy["version"] + 1},
+        files={"file": ("driver-jd-v2.pdf", content, supply_files.PDF)},
+    )
+    assert second.status_code == 201, second.text
+    assert sorted(item["version_number"] for item in client.get(job_path).json()["items"]) == [1, 2]
+    assert client.get(f"/api/v1/job-descriptions/{second.json()['id']}/download").content == content
+
+    restricted, _ = login(db, "MARKETING")
+    assert restricted.get(collection).status_code == 403
+    assert restricted.get(job_path).status_code == 403
+
+    storage = get_storage_client()
+    for document in db.scalars(select(PartnershipDocument)).all():
+        storage.delete_object(Bucket=settings.s3_bucket, Key=document.storage_key)
+    for document in db.scalars(select(JobDescriptionVersion)).all():
+        storage.delete_object(Bucket=settings.s3_bucket, Key=document.storage_key)
 
 
 def test_vacancy_lifecycle_requirement_history_and_headcount(db):

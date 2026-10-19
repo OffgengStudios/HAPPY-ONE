@@ -18,7 +18,7 @@ from app.modules.iam.security import hasher
 from app.modules.matching.models import CandidateHistory, CandidateVacancy, EmployerDecision
 from app.modules.merl.models import DataQualityIssue, Outcome
 from app.modules.placement.models import Placement
-from app.modules.reporting import routes as reporting_routes
+from app.modules.reporting import worker as reporting_worker
 from app.modules.reporting.models import ReportExportJob
 from app.modules.supply.models import Participant, Person
 from app.storage.s3 import get_storage_client
@@ -274,7 +274,7 @@ def test_persisted_export_job_is_private_audited_and_downloadable(
     client, user = login(db, "MANAGEMENT")
     reporting_records(db, user)
     monkeypatch.setattr(
-        reporting_routes,
+        reporting_worker,
         "get_session_factory",
         lambda: lambda: nullcontext(db),
     )
@@ -284,6 +284,8 @@ def test_persisted_export_job_is_private_audited_and_downloadable(
     )
     assert response.status_code == 202, response.text
     identifier = response.json()["id"]
+    assert response.json()["status"] == "PENDING"
+    assert reporting_worker.run_once() is True
     job = client.get(f"/api/v1/reports/export-jobs/{identifier}")
     assert job.status_code == 200
     assert job.json()["status"] == "SUCCEEDED"
@@ -302,6 +304,53 @@ def test_persisted_export_job_is_private_audited_and_downloadable(
     row = db.get(ReportExportJob, identifier)
     assert row and row.storage_key
     get_storage_client().delete_object(Bucket=settings.s3_bucket, Key=row.storage_key)
+
+
+def test_export_worker_retries_failures_and_recovers_expired_leases(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, user = login(db, "MANAGEMENT")
+    reporting_records(db, user)
+    monkeypatch.setattr(
+        reporting_worker,
+        "get_session_factory",
+        lambda: lambda: nullcontext(db),
+    )
+    response = client.post(
+        "/api/v1/reports/export-jobs",
+        json={"kpi_code": "KPI-PLC-001", "date_from": "2026-10-01", "date_to": "2026-10-31"},
+    )
+    assert response.status_code == 202
+    row = db.get(ReportExportJob, response.json()["id"])
+    assert row
+    row.status = "RUNNING"
+    row.lease_owner = "dead-worker"
+    row.lease_expires_at = datetime(2026, 1, 1, tzinfo=UTC)
+    db.commit()
+
+    def unavailable_storage():
+        raise RuntimeError("Synthetic storage outage")
+
+    monkeypatch.setattr(reporting_worker, "get_storage_client", unavailable_storage)
+    assert reporting_worker.run_once() is True
+    db.refresh(row)
+    assert row.status == "PENDING"
+    assert row.attempt_count == 1
+    assert row.next_attempt_at is not None
+    assert row.lease_owner is None
+
+    row.next_attempt_at = datetime(2026, 1, 1, tzinfo=UTC)
+    row.attempt_count = settings.background_job_max_attempts - 1
+    db.commit()
+    assert reporting_worker.run_once() is True
+    db.refresh(row)
+    assert row.status == "FAILED"
+    assert row.attempt_count == settings.background_job_max_attempts
+    assert db.scalar(
+        select(AuditEvent).where(
+            AuditEvent.action == "report.export_failed", AuditEvent.entity_id == row.id
+        )
+    )
 
 
 def test_unapproved_kpis_are_explicitly_unavailable(db: Session) -> None:

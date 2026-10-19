@@ -10,6 +10,10 @@ Current evidence-based status and release blockers are recorded in the
 [Operations Platform readiness audit](docs/48-OPERATIONS-READINESS-AUDIT.md).
 The latest local quality baseline is recorded in
 [Quality Baseline Restoration](docs/49-QUALITY-BASELINE-RESTORATION.md).
+The subsequent Demand document checkpoint is recorded in
+[Partnership and Document Acceptance](docs/50-PARTNERSHIP-DOCUMENT-ACCEPTANCE.md).
+The durable execution checkpoint is recorded in
+[Durable Background Processing Acceptance](docs/51-DURABLE-BACKGROUND-PROCESSING.md).
 
 HAPPY first, integrations second. All thirteen phases have local implementation
 acceptance for their documented scope. Phase 7's HAPPY-side parser job, advisory
@@ -126,6 +130,11 @@ references. The full backend suite passed 259 tests at migration
 [Phase 12 acceptance report](docs/42-PHASE-12-HAMIS-INTEGRATION.md). A live Apps
 Script deployment remains a production integration gate.
 
+Durable background processing now commits report exports and HAMIS events before
+execution and runs them with CV parser jobs through `pnpm background:worker`.
+PostgreSQL leases, bounded retries and expired-lease recovery make worker restarts
+safe; live provider and staging restart UAT remain release gates.
+
 Phase 13 accepts encrypted, idempotent Employer Portal submissions under a
 separate machine identity and converts staff-approved records into the existing
 Organization, Contact, Partnership, Vacancy and Requirement domains. The current
@@ -207,13 +216,15 @@ the full local checkpoint below.
 
 ## Verification
 
-Current quality checkpoint (18 Oct 2026): root `pnpm verify` passes at migration
-`0031_oidc_sso` with 273 backend tests, four environment tests, 98 authenticated
+Current quality checkpoint (19 Oct 2026): root `pnpm verify` passes at migration
+`0034_hamis_worker` with 276 backend tests, four environment tests, 98 authenticated
 desktop/mobile browser tests, clean Python and frontend static checks, a production
-web build, and clean Python/JavaScript production dependency audits. Generic Tasks
+web build, and clean Python/JavaScript production dependency audits. Demand now
+supports typed partnership periods and history plus versioned, private partnership
+agreements and vacancy job descriptions with scan-gated downloads. Generic Tasks
 and Handoffs retain a separate permission-aware workspace while each operational
 role keeps its established My Work projection. See the
-[quality baseline evidence](docs/49-QUALITY-BASELINE-RESTORATION.md). Live provider,
+[latest acceptance evidence](docs/51-DURABLE-BACKGROUND-PROCESSING.md). Live provider,
 integration, backup-retention and restore-exercise gates remain open.
 
 Phase 10 functional acceptance (12 Oct 2026): migration `0018_reporting`, KPI

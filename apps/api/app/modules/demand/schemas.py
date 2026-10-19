@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Any, Literal, Self
 from uuid import UUID
@@ -80,6 +80,9 @@ class ContactPatch(ContactFields, Version):
 
 
 class PartnershipFields(Input):
+    partnership_type: Literal["TRAINING", "RECRUITMENT", "COMBINED"] = "RECRUITMENT"
+    start_date: date = Field(default_factory=date.today)
+    end_date: date | None = None
     mou_required: bool
     priority: Priority = "NORMAL"
     mou_sent_at: AwareDatetime | None = None
@@ -90,6 +93,8 @@ class PartnershipFields(Input):
 
     @model_validator(mode="after")
     def dates(self) -> Self:
+        if self.end_date and self.end_date < self.start_date:
+            raise ValueError("The partnership end date cannot precede its start date.")
         if self.mou_sent_at and self.mou_signed_at and self.mou_signed_at < self.mou_sent_at:
             raise ValueError("The signed date cannot precede the sent date.")
         if self.next_action_due_at and not self.next_action:
@@ -199,6 +204,6 @@ class Archive(Version):
 def json_value(value: Any) -> Any:
     if isinstance(value, UUID | Decimal):
         return str(value)
-    if isinstance(value, datetime):
+    if isinstance(value, datetime | date):
         return value.isoformat()
     return value

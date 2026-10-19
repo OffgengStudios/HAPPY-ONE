@@ -26,7 +26,8 @@
     "db:local:stop": "python scripts/api.py db-local stop",
     "db:local:status": "python scripts/api.py db-local status",
     "db:backup": "python scripts/api.py db-backup",
-    "cv-parser:worker": "python scripts/api.py cv-parser-worker"
+    "cv-parser:worker": "python scripts/api.py cv-parser-worker",
+    "background:worker": "python scripts/api.py background-worker"
   },
   "pnpm": {
     "overrides": {

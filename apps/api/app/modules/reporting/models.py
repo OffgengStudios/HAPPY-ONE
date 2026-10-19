@@ -56,6 +56,7 @@ class ReportExportJob(Record, Base):
             name="ck_report_export_job_status",
         ),
         CheckConstraint("row_count IS NULL OR row_count >= 0", name="ck_report_export_row_count"),
+        CheckConstraint("attempt_count >= 0", name="ck_report_export_job_attempts"),
         Index("ix_report_export_requester_created", "requested_by", "created_at"),
     )
     requested_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"), index=True)
@@ -69,5 +70,9 @@ class ReportExportJob(Record, Base):
     row_count: Mapped[int | None] = mapped_column(Integer)
     error_code: Mapped[str | None] = mapped_column(String(80))
     error_message: Mapped[str | None] = mapped_column(String(500))
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0)
+    next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    lease_owner: Mapped[str | None] = mapped_column(String(100))
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

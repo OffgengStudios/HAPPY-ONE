@@ -120,6 +120,12 @@ test("Demand staff completes an employer-to-vacancy workflow", async ({
   await page
     .getByRole("tab", { name: "Partnership / MOU", exact: true })
     .click();
+  await expect(
+    page.getByRole("heading", { name: "Partnership history", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "New period", exact: true }),
+  ).toBeVisible();
   for (const status of ["CONTACTED", "ENGAGED", "INTERESTED", "MOU_PENDING"])
     await relationship(page, status);
   await page
@@ -154,6 +160,11 @@ test("Demand staff completes an employer-to-vacancy workflow", async ({
   await expect(
     page.getByRole("heading", { name: vacancyName, exact: true }),
   ).toBeVisible();
+  await page
+    .getByRole("tab", { name: "Job descriptions", exact: true })
+    .click();
+  await expect(page.getByText("No document versions recorded")).toBeVisible();
+  await expect(page.getByText("Upload version", { exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "Requirements", exact: true }).click();
   await page
     .getByRole("button", { name: "New requirement", exact: true })

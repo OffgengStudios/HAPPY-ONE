@@ -1,16 +1,14 @@
-from datetime import UTC, date, datetime
+from datetime import date
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Request
+from fastapi import APIRouter, Depends, Request
 from pydantic import ValidationError
 from sqlalchemy import func, select
 from starlette.responses import Response, StreamingResponse
 
 from app.core.config import settings
 from app.core.errors import ApiError
-from app.db.session import get_session_factory
-from app.modules.iam.actors import AuditActor
 from app.modules.iam.dependencies import Database, Principal, require
 from app.modules.iam.service import audit
 from app.modules.marketing.models import Campaign
@@ -51,58 +49,6 @@ def owned_job(db: Database, identifier: UUID, actor: Principal) -> ReportExportJ
     if not row or row.archived_at or row.requested_by != actor.user.id:
         raise ApiError(404, "REPORT_EXPORT_JOB_NOT_FOUND", "Export job not found.")
     return row
-
-
-def process_export_job(identifier: UUID) -> None:
-    with get_session_factory()() as db:
-        row = db.get(ReportExportJob, identifier)
-        if not row or row.status != "PENDING":
-            return
-        row.status = "RUNNING"
-        row.started_at = datetime.now(UTC)
-        db.commit()
-        try:
-            values = data.Period(date_from=row.period_start, date_to=row.period_end)
-            rows = s.drilldown(db, row.kpi_code, values, limit=None)
-            content = s.csv_export(row.kpi_code, rows).encode("utf-8")
-            key = f"reports/exports/{row.requested_by}/{row.id}.csv"
-            get_storage_client().put_object(
-                Bucket=settings.s3_bucket,
-                Key=key,
-                Body=content,
-                ContentType="text/csv; charset=utf-8",
-            )
-            row.storage_key = key
-            row.row_count = len(rows)
-            row.status = "SUCCEEDED"
-            row.completed_at = datetime.now(UTC)
-            audit(
-                db,
-                "report.export_completed",
-                AuditActor("SYSTEM"),
-                "report_export_job",
-                row.id,
-                changes={"kpi_code": row.kpi_code, "row_count": len(rows)},
-            )
-        except Exception:
-            db.rollback()
-            row = db.get(ReportExportJob, identifier)
-            if not row:
-                return
-            row.status = "FAILED"
-            row.error_code = "EXPORT_GENERATION_FAILED"
-            row.error_message = "The report export could not be generated."
-            row.completed_at = datetime.now(UTC)
-            audit(
-                db,
-                "report.export_failed",
-                AuditActor("SYSTEM"),
-                "report_export_job",
-                row.id,
-                result="FAILURE",
-                changes={"error_code": row.error_code},
-            )
-        db.commit()
 
 
 @router.get("/reports/dashboard")
@@ -228,7 +174,6 @@ def export(values: data.ExportRequest, db: Database, actor: Export, request: Req
 @router.post("/reports/export-jobs", status_code=202)
 def export_job_create(
     values: data.ExportRequest,
-    background: BackgroundTasks,
     db: Database,
     actor: Export,
     request: Request,
@@ -263,7 +208,6 @@ def export_job_create(
         },
     )
     db.commit()
-    background.add_task(process_export_job, row.id)
     return s.export_job_view(row)
 
 

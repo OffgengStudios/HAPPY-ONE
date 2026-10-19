@@ -3,7 +3,7 @@ import json
 from typing import Any
 from uuid import uuid4
 
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from fastapi import Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -74,6 +74,28 @@ def encrypt_payload(payload: dict[str, Any]) -> str:
         ) from error
     encoded = json.dumps(payload, separators=(",", ":"), ensure_ascii=True).encode()
     return cipher.encrypt(encoded).decode()
+
+
+def decrypt_payload(ciphertext: str) -> dict[str, Any]:
+    try:
+        decoded = Fernet(settings.identity_encryption_key.get_secret_value().encode()).decrypt(
+            ciphertext.encode()
+        )
+        payload = json.loads(decoded)
+    except (TypeError, ValueError, InvalidToken, json.JSONDecodeError) as error:
+        raise ValueError("Protected HAMIS payload could not be decrypted.") from error
+    if not isinstance(payload, dict):
+        raise ValueError("Protected HAMIS payload is not an object.")
+    return payload
+
+
+def process_event(db: Session, row: HamisInboundEvent) -> None:
+    payload = decrypt_payload(row.payload_ciphertext)
+    if row.event_type == "PARTICIPANT_UPSERT":
+        apply_participant(db, row, payload)
+    else:
+        review(row, f"{row.event_type} requires staff mapping to authoritative HAPPY records.")
+    row.version += 1
 
 
 def apply_participant(db: Session, row: HamisInboundEvent, payload: dict[str, Any]) -> None:
@@ -188,10 +210,6 @@ def receive(
     )
     db.add(row)
     db.flush()
-    if data.event_type == "PARTICIPANT_UPSERT":
-        apply_participant(db, row, data.payload)
-    else:
-        review(row, f"{data.event_type} requires staff mapping to authoritative HAPPY records.")
     audit(
         db,
         "hamis.event_received",

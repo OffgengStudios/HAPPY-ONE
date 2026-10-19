@@ -9,8 +9,10 @@ from sqlalchemy.orm import Session
 from app.core.errors import ApiError
 from app.modules.demand.models import (
     Contact,
+    JobDescriptionVersion,
     Organization,
     Partnership,
+    PartnershipDocument,
     Record,
     Requirement,
     Vacancy,
@@ -53,6 +55,7 @@ PUBLIC_FIELDS: dict[type[Record], tuple[str, ...]] = {
     Contact: (*ContactFields.model_fields, "organization_id", "phone_normalized"),
     Partnership: (
         *PartnershipFields.model_fields,
+        "partnership_code",
         "organization_id",
         "status",
         "owner_assigned_at",
@@ -68,6 +71,26 @@ PUBLIC_FIELDS: dict[type[Record], tuple[str, ...]] = {
         "closure_note",
     ),
     Requirement: (*RequirementFields.model_fields, "vacancy_id"),
+    PartnershipDocument: (
+        "partnership_id",
+        "document_code",
+        "original_filename",
+        "mime_type",
+        "size_bytes",
+        "version_number",
+        "scan_status",
+        "scan_details",
+    ),
+    JobDescriptionVersion: (
+        "vacancy_id",
+        "document_code",
+        "original_filename",
+        "mime_type",
+        "size_bytes",
+        "version_number",
+        "scan_status",
+        "scan_details",
+    ),
 }
 
 
@@ -145,7 +168,12 @@ def view(row: Record) -> dict[str, Any]:
 
 
 def organization_view(db: Session, row: Organization) -> dict[str, Any]:
-    partnership = db.scalar(select(Partnership).where(Partnership.organization_id == row.id))
+    partnership = db.scalar(
+        select(Partnership)
+        .where(Partnership.organization_id == row.id, Partnership.archived_at.is_(None))
+        .order_by(Partnership.start_date.desc(), Partnership.created_at.desc())
+        .limit(1)
+    )
     return {**view(row), "status": partnership.status if partnership else "LEAD"}
 
 
@@ -267,7 +295,10 @@ def create_organization(
     db.flush()
     db.add(
         Partnership(
+            partnership_code="PAR-" + uuid4().hex[:12].upper(),
             organization_id=row.id,
+            partnership_type="RECRUITMENT",
+            start_date=now().date(),
             mou_required=required,
             owner_id=row.relationship_owner_id,
             owner_assigned_at=now() if row.relationship_owner_id else None,

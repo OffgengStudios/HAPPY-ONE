@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 from uuid import UUID, uuid4
@@ -7,6 +7,7 @@ from sqlalchemy import (
     JSON,
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -14,6 +15,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
     Uuid,
     text,
 )
@@ -84,8 +86,19 @@ class Partnership(Record, Base):
         CheckConstraint(
             "status != 'MOU_SIGNED' OR mou_signed_at IS NOT NULL", name="ck_partnership_signed_date"
         ),
+        CheckConstraint(
+            "partnership_type IN ('TRAINING','RECRUITMENT','COMBINED')",
+            name="ck_partnership_type",
+        ),
+        CheckConstraint("end_date IS NULL OR end_date >= start_date", name="ck_partnership_dates"),
     )
-    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id"), unique=True)
+    partnership_code: Mapped[str] = mapped_column(
+        String(40), unique=True, default=lambda: "PAR-" + uuid4().hex[:12].upper()
+    )
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    partnership_type: Mapped[str] = mapped_column(String(20), default="RECRUITMENT")
+    start_date: Mapped[date] = mapped_column(Date, default=date.today)
+    end_date: Mapped[date | None] = mapped_column(Date)
     status: Mapped[str] = mapped_column(String(30), default="LEAD")
     mou_required: Mapped[bool] = mapped_column(Boolean, default=True)
     priority: Mapped[str] = mapped_column(String(15), default="NORMAL")
@@ -95,6 +108,30 @@ class Partnership(Record, Base):
     owner_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
     next_action: Mapped[str | None] = mapped_column(String(500))
     next_action_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class PartnershipDocument(Record, Base):
+    __tablename__ = "partnership_documents"
+    __table_args__ = (
+        UniqueConstraint(
+            "partnership_id", "version_number", name="uq_partnership_document_version"
+        ),
+        CheckConstraint(
+            "scan_status IN ('SCANNING','AVAILABLE','REJECTED','ARCHIVED')",
+            name="ck_partnership_document_scan_status",
+        ),
+        CheckConstraint("size_bytes > 0", name="ck_partnership_document_size"),
+    )
+    partnership_id: Mapped[UUID] = mapped_column(ForeignKey("partnerships.id"), index=True)
+    document_code: Mapped[str] = mapped_column(String(40), unique=True)
+    storage_key: Mapped[str] = mapped_column(String(300), unique=True)
+    original_filename: Mapped[str] = mapped_column(String(200))
+    mime_type: Mapped[str] = mapped_column(String(100))
+    size_bytes: Mapped[int] = mapped_column(Integer)
+    sha256: Mapped[str] = mapped_column(String(64))
+    version_number: Mapped[int] = mapped_column(Integer)
+    scan_status: Mapped[str] = mapped_column(String(30), default="SCANNING")
+    scan_details: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
 
 class Vacancy(Record, Base):
@@ -137,6 +174,28 @@ class Vacancy(Record, Base):
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     closure_reason: Mapped[str | None] = mapped_column(String(100))
     closure_note: Mapped[str | None] = mapped_column(Text)
+
+
+class JobDescriptionVersion(Record, Base):
+    __tablename__ = "job_description_versions"
+    __table_args__ = (
+        UniqueConstraint("vacancy_id", "version_number", name="uq_job_description_version"),
+        CheckConstraint(
+            "scan_status IN ('SCANNING','AVAILABLE','REJECTED','ARCHIVED')",
+            name="ck_job_description_scan_status",
+        ),
+        CheckConstraint("size_bytes > 0", name="ck_job_description_size"),
+    )
+    vacancy_id: Mapped[UUID] = mapped_column(ForeignKey("vacancies.id"), index=True)
+    document_code: Mapped[str] = mapped_column(String(40), unique=True)
+    storage_key: Mapped[str] = mapped_column(String(300), unique=True)
+    original_filename: Mapped[str] = mapped_column(String(200))
+    mime_type: Mapped[str] = mapped_column(String(100))
+    size_bytes: Mapped[int] = mapped_column(Integer)
+    sha256: Mapped[str] = mapped_column(String(64))
+    version_number: Mapped[int] = mapped_column(Integer)
+    scan_status: Mapped[str] = mapped_column(String(30), default="SCANNING")
+    scan_details: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
 
 class Requirement(Record, Base):
