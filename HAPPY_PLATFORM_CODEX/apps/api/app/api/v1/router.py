@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.integrations.employer_portal.routes import router as employer_portal_router
 from app.integrations.hamis.routes import router as hamis_router
+from app.integrations.intake.routes import router as intake_router
 from app.modules.cv_parser.routes import router as cv_parser_router
 from app.modules.demand.routes import router as demand_router
 from app.modules.external_references.routes import router as reference_router
@@ -34,3 +35,5 @@ api_router.include_router(training_router)
 api_router.include_router(work_router)
 api_router.include_router(hamis_router)
 api_router.include_router(employer_portal_router)
+
+api_router.include_router(intake_router)

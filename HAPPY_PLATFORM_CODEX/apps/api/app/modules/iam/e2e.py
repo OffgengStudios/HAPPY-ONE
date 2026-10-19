@@ -26,6 +26,7 @@ from app.db.sandbox import create_test_schema, drop_test_schema, test_schema_url
 from app.integrations.employer_portal.models import EmployerSubmission
 from app.integrations.employer_portal.schemas import PortalSubmission
 from app.integrations.employer_portal.service import encrypt as encrypt_portal_submission
+from app.integrations.intake.models import IntakeDocument, PublicIntake
 from app.modules.demand.models import Organization, Partnership, Vacancy
 from app.modules.iam.actors import AuditActor
 from app.modules.iam.models import Permission, PermissionOverride, Role, User
@@ -42,9 +43,31 @@ from app.storage.s3 import get_storage_client
 def cleanup_documents(engine: Engine) -> None:
     with Session(engine) as db:
         for document in db.scalars(select(Document)):
-            if not document.storage_key.startswith(f"participants/{document.participant_id}/cv/"):
+            owns_cv = document.storage_key.startswith(f"participants/{document.participant_id}/cv/")
+            if not owns_cv and document.storage_key.startswith("intakes/"):
+                staged = db.scalar(
+                    select(IntakeDocument)
+                    .join(PublicIntake)
+                    .where(
+                        IntakeDocument.linked_document_id == document.id,
+                        PublicIntake.participant_id == document.participant_id,
+                        IntakeDocument.storage_key == document.storage_key,
+                    )
+                )
+                owns_cv = staged is not None and document.storage_key.startswith(
+                    f"intakes/{staged.intake_id}/"
+                )
+            if not owns_cv:
                 raise ValueError("Refusing cleanup outside the synthetic participant's CV prefix.")
             get_storage_client().delete_object(Bucket=settings.s3_bucket, Key=document.storage_key)
+
+
+def cleanup_intake_documents(engine: Engine) -> None:
+    with Session(engine) as db:
+        for staged in db.scalars(select(IntakeDocument)):
+            if not staged.storage_key.startswith(f"intakes/{staged.intake_id}/"):
+                raise ValueError("Refusing cleanup outside the synthetic intake prefix.")
+            get_storage_client().delete_object(Bucket=settings.s3_bucket, Key=staged.storage_key)
 
 
 def cleanup_report_exports(engine: Engine) -> None:
@@ -396,7 +419,7 @@ def start() -> None:
                         "city": "Accra",
                         "contactName": "Portal Hiring Lead",
                         "contactRole": "HR Manager",
-                        "contactPhone": "0241234567",
+                        "contactPhone": "0247777701" if projection == "desktop" else "0247777702",
                         "contactEmail": f"portal-{projection}@example.org",
                         "consentAgreement": True,
                         "consentContact": True,
@@ -438,10 +461,12 @@ def start() -> None:
             **os.environ,
             "DATABASE_URL": url,
             "APP_ENV": "test",
-            "API_CORS_ORIGINS": json.dumps(["http://127.0.0.1:3100"]),
+            "API_CORS_ORIGINS": json.dumps(["http://127.0.0.1:3100", "http://127.0.0.1:8765"]),
             "AUTH_IP_LIMIT": "100",
             "SUPPLY_ONBOARDING_POLICY_APPROVED": "true",
             "SUPPLY_PRIVACY_NOTICE_VERSION": "SYNTHETIC-E2E-NOTICE",
+            "SUPPLY_PRIVACY_NOTICE_TEXT": "Synthetic test privacy notice; not programme policy.",
+            "EMPLOYER_INTAKE_NOTICE_TEXT": "Synthetic test employer notice; not programme policy.",
             "SUPPLY_REQUIRED_SECTIONS": '["basic","contact","consent","review"]',
             "SUPPLY_REQUIRED_FIELDS": "[]",
             "FILE_SCAN_HOST": "",
@@ -508,6 +533,7 @@ def start() -> None:
             process.terminate()
             process.wait(timeout=10)
         cleanup_documents(engine)
+        cleanup_intake_documents(engine)
         cleanup_report_exports(engine)
         drop_test_schema(schema)
         raise
@@ -536,6 +562,7 @@ def stop() -> None:
     engine = create_engine(test_schema_url(state["schema"]))
     try:
         cleanup_documents(engine)
+        cleanup_intake_documents(engine)
         cleanup_report_exports(engine)
     finally:
         engine.dispose()

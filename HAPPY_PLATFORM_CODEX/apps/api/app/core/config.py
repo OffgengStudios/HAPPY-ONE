@@ -3,7 +3,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal, Self
 
-from pydantic import Field, SecretStr, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
@@ -54,6 +54,9 @@ class Settings(BaseSettings):
     oidc_provider_name: str = "Organizational SSO"
     oidc_allowed_email_domains: list[str] = Field(default_factory=list)
     demand_vacancy_confirmation_required: bool = True
+    public_intake_limit: int = Field(default=20, ge=1, le=1000)
+    employer_intake_notice_text: str = ""
+    supply_privacy_notice_text: str = ""
     supply_privacy_notice_version: str = ""
     supply_onboarding_policy_approved: bool = False
     supply_required_fields: list[str] = Field(default_factory=list)
@@ -66,6 +69,7 @@ class Settings(BaseSettings):
     cv_parser_provider: str = ""
     cv_parser_model: str = ""
     cv_parser_url: str = ""
+    cv_parser_hostport: str = Field(default="", pattern=r"^(?:[A-Za-z0-9.-]+:[0-9]{1,5})?$")
     cv_parser_token: SecretStr = SecretStr("")
     cv_parser_timeout_seconds: int = Field(default=60, ge=5, le=300)
     cv_parser_max_attempts: int = Field(default=5, ge=1, le=20)
@@ -76,6 +80,16 @@ class Settings(BaseSettings):
     employer_portal_integration_token: SecretStr = SecretStr("")
     identity_encryption_key: SecretStr = SecretStr("")
     identity_lookup_key: SecretStr = SecretStr("")
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def postgres_driver(cls, value: str) -> str:
+        # Render provides standard PostgreSQL URLs; this project uses psycopg 3.
+        if value.startswith("postgres://"):
+            return value.replace("postgres://", "postgresql+psycopg://", 1)
+        if value.startswith("postgresql://"):
+            return value.replace("postgresql://", "postgresql+psycopg://", 1)
+        return value
 
     @model_validator(mode="after")
     def production_safety(self) -> Self:

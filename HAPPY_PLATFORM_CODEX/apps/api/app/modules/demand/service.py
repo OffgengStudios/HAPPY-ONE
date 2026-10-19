@@ -120,7 +120,7 @@ def writable(row: Record, version: int) -> None:
         fail("RECORD_VERSION_CONFLICT", "This record changed. Refresh before saving.")
 
 
-def changed(row: Record, actor: UUID) -> None:
+def changed(row: Record, actor: UUID | None) -> None:
     row.version += 1
     row.updated_by = actor
     row.updated_at = now()

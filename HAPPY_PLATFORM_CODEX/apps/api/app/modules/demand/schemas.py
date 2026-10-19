@@ -126,6 +126,10 @@ class VacancyFields(Input):
     work_days_text: Short | None = None
     work_hours_text: Short | None = None
     accommodation_available: bool | None = None
+    deadline: date | None = None
+    benefits: list[Annotated[str, Field(min_length=1, max_length=500)]] = Field(
+        default_factory=list, max_length=20
+    )
     required_headcount: int = Field(gt=0, le=1000000, strict=True)
     owner_id: UUID | None = None
     demand_owner_id: UUID | None = None

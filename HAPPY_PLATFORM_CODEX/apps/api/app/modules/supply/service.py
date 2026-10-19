@@ -14,7 +14,7 @@ from app.core.config import settings
 from app.core.errors import ApiError
 from app.modules.demand.schemas import Version, normalize_phone, normalized_name
 from app.modules.demand.service import assignable, changed, get_record, writable
-from app.modules.iam.dependencies import Principal
+from app.modules.iam.actors import AuthorizationContext, staff_user_id
 from app.modules.iam.models import now
 from app.modules.iam.service import audit
 from app.modules.supply import schemas as s
@@ -258,14 +258,17 @@ def lock(db: Session, identifier: UUID, version: int) -> Participant:
 def save(
     db: Session,
     row: Participant,
-    principal: Principal,
+    principal: AuthorizationContext,
     request: Request,
     event: str,
     details: dict[str, Any] | None = None,
+    *,
+    commit: bool = True,
 ) -> None:
     db.flush()
-    audit(db, event, principal.user.id, "participants", row.id, request, changes=details or {})
-    db.commit()
+    audit(db, event, principal.audit_actor, "participants", row.id, request, changes=details or {})
+    if commit:
+        db.commit()
 
 
 def identity_hash(kind: str, raw: str) -> str:
@@ -342,7 +345,14 @@ def check_duplicate(
         )
 
 
-def create(db: Session, data: s.Intake, principal: Principal, request: Request) -> Participant:
+def create(
+    db: Session,
+    data: s.Intake,
+    principal: AuthorizationContext,
+    request: Request,
+    *,
+    commit: bool = True,
+) -> Participant:
     values = data.model_dump()
     check_duplicate(db, values, None, data.duplicate_acknowledged)
     assignable(db, data.assigned_user_id, "participant:edit")
@@ -356,7 +366,7 @@ def create(db: Session, data: s.Intake, principal: Principal, request: Request) 
         normalized_name=normalized_name(
             " ".join(v for v in (data.first_name, data.other_names, data.surname) if v)
         ),
-        created_by=principal.user.id,
+        created_by=staff_user_id(principal),
     )
     if person.email:
         person.email = person.email.lower()
@@ -371,7 +381,7 @@ def create(db: Session, data: s.Intake, principal: Principal, request: Request) 
         source_detail=data.source_detail,
         implementing_partner=data.implementing_partner,
         completed_sections=["basic", "contact"],
-        created_by=principal.user.id,
+        created_by=staff_user_id(principal),
     )
     db.add(row)
     save(
@@ -381,12 +391,17 @@ def create(db: Session, data: s.Intake, principal: Principal, request: Request) 
         request,
         "participant.created",
         {"duplicate_acknowledged": data.duplicate_acknowledged},
+        commit=commit,
     )
     return row
 
 
 def replace_children(
-    db: Session, row: Participant, model: type[Any], entries: list[dict[str, Any]], actor: UUID
+    db: Session,
+    row: Participant,
+    model: type[Any],
+    entries: list[dict[str, Any]],
+    actor: UUID | None,
 ) -> None:
     for child in db.scalars(
         select(model).where(model.participant_id == row.id, model.archived_at.is_(None))
@@ -413,8 +428,10 @@ def section_write(
     row: Participant,
     section: str,
     data: Version,
-    principal: Principal,
+    principal: AuthorizationContext,
     request: Request,
+    *,
+    commit: bool = True,
 ) -> None:
     if row.onboarding_status == "WITHDRAWN":
         raise ApiError(
@@ -438,16 +455,16 @@ def section_write(
         person.phone_normalized = normalize_phone(person.phone_raw) or ""
         person.email = person.email.lower() if person.email else None
         person.normalized_name = normalized_name(full_name(person))
-        changed(person, principal.user.id)
+        changed(person, staff_user_id(principal))
     elif section == "demographics":
         for key, value in values.items():
             setattr(person, key, value)
-        changed(person, principal.user.id)
+        changed(person, staff_user_id(principal))
     elif section == "education":
-        replace_children(db, row, Education, values["items"], principal.user.id)
+        replace_children(db, row, Education, values["items"], staff_user_id(principal))
     elif section == "employment":
-        replace_children(db, row, Experience, values.pop("experience"), principal.user.id)
-        replace_children(db, row, Skill, values.pop("skills"), principal.user.id)
+        replace_children(db, row, Experience, values.pop("experience"), staff_user_id(principal))
+        replace_children(db, row, Skill, values.pop("skills"), staff_user_id(principal))
         for key, value in values.items():
             setattr(row, key, value)
     elif section == "training":
@@ -457,7 +474,7 @@ def section_write(
         completed.discard("review")
     row.completed_sections = sorted(completed | {section})
     row.onboarding_status = "IN_PROGRESS"
-    changed(row, principal.user.id)
+    changed(row, staff_user_id(principal))
     save(
         db,
         row,
@@ -465,11 +482,18 @@ def section_write(
         request,
         "participant.updated",
         {"section": section, "fields": list(values)},
+        commit=commit,
     )
 
 
 def record_consent(
-    db: Session, row: Participant, data: s.ConsentWrite, principal: Principal, request: Request
+    db: Session,
+    row: Participant,
+    data: s.ConsentWrite,
+    principal: AuthorizationContext,
+    request: Request,
+    *,
+    commit: bool = True,
 ) -> Consent:
     if row.onboarding_status == "WITHDRAWN":
         raise ApiError(
@@ -487,11 +511,11 @@ def record_consent(
     # A new consent is a new historical record; never overwrite an earlier withdrawal.
     consent = Consent(
         participant_id=row.id,
-        created_by=principal.user.id,
+        created_by=staff_user_id(principal),
         **data.model_dump(exclude={"version", "participant_agreed"}),
     )
     db.add(consent)
-    changed(row, principal.user.id)
+    changed(row, staff_user_id(principal))
     save(
         db,
         row,
@@ -499,6 +523,7 @@ def record_consent(
         request,
         "participant.consent_recorded",
         {"consent_type": data.consent_type, "privacy_notice_version": data.privacy_notice_version},
+        commit=commit,
     )
     return consent
 
@@ -508,7 +533,7 @@ def withdraw_consent(
     row: Participant,
     consent: Consent,
     reason: str,
-    principal: Principal,
+    principal: AuthorizationContext,
     request: Request,
 ) -> None:
     if consent.status != "ACTIVE":
@@ -526,10 +551,10 @@ def withdraw_consent(
         grant.status = "WITHDRAWN"
         grant.withdrawn_at = now()
         grant.reason = reason
-        changed(grant, principal.user.id)
+        changed(grant, staff_user_id(principal))
     if consent.consent_type == "PROGRAMME" and row.onboarding_status == "COMPLETE":
         row.onboarding_status = "BLOCKED"
-    changed(row, principal.user.id)
+    changed(row, staff_user_id(principal))
     save(
         db,
         row,
@@ -541,7 +566,13 @@ def withdraw_consent(
 
 
 def complete(
-    db: Session, row: Participant, data: s.Complete, principal: Principal, request: Request
+    db: Session,
+    row: Participant,
+    data: s.Complete,
+    principal: AuthorizationContext,
+    request: Request,
+    *,
+    commit: bool = True,
 ) -> None:
     if row.onboarding_status in {"COMPLETE", "WITHDRAWN"}:
         raise ApiError(
@@ -562,9 +593,9 @@ def complete(
         )
     row.onboarding_status = "COMPLETE"
     row.completion_mode = data.completion_mode
-    row.assisted_by = principal.user.id if data.completion_mode == "STAFF_ASSISTED" else None
+    row.assisted_by = staff_user_id(principal) if data.completion_mode == "STAFF_ASSISTED" else None
     row.completed_at = now()
-    changed(row, principal.user.id)
+    changed(row, staff_user_id(principal))
     save(
         db,
         row,
@@ -577,6 +608,7 @@ def complete(
                 set(settings.supply_required_sections) | {"basic", "contact", "consent"}
             ),
         },
+        commit=commit,
     )
 
 
@@ -594,18 +626,24 @@ def sensitive_view(db: Session, row: Participant) -> dict[str, Any]:
 
 
 def save_sensitive(
-    db: Session, row: Participant, data: s.SensitiveWrite, principal: Principal, request: Request
+    db: Session,
+    row: Participant,
+    data: s.SensitiveWrite,
+    principal: AuthorizationContext,
+    request: Request,
+    *,
+    commit: bool = True,
 ) -> None:
     profile = db.scalar(select(SensitiveProfile).where(SensitiveProfile.participant_id == row.id))
     if profile is None:
-        profile = SensitiveProfile(participant_id=row.id, created_by=principal.user.id)
+        profile = SensitiveProfile(participant_id=row.id, created_by=staff_user_id(principal))
         db.add(profile)
     values = data.model_dump(exclude={"version"})
     for key, value in values.items():
         setattr(profile, key, value)
     if profile.version:
-        changed(profile, principal.user.id)
-    changed(row, principal.user.id)
+        changed(profile, staff_user_id(principal))
+    changed(row, staff_user_id(principal))
     save(
         db,
         row,
@@ -613,11 +651,16 @@ def save_sensitive(
         request,
         "participant.updated",
         {"section": "sensitive", "fields": list(values)},
+        commit=commit,
     )
 
 
 def save_identity(
-    db: Session, row: Participant, data: s.IdentityWrite, principal: Principal, request: Request
+    db: Session,
+    row: Participant,
+    data: s.IdentityWrite,
+    principal: AuthorizationContext,
+    request: Request,
 ) -> None:
     raw = data.government_id.get_secret_value()
     fingerprint = identity_hash(data.government_id_type, raw)
@@ -643,8 +686,8 @@ def save_identity(
     person.government_id_type = data.government_id_type
     person.government_id_ciphertext = cipher.encrypt(raw.encode()).decode()
     person.government_id_hash = fingerprint
-    changed(person, principal.user.id)
-    changed(row, principal.user.id)
+    changed(person, staff_user_id(principal))
+    changed(row, staff_user_id(principal))
     save(
         db,
         row,

@@ -37,3 +37,9 @@ class AuthorizationContext(Protocol):
 
     @property
     def audit_actor(self) -> AuditActor: ...
+
+
+def staff_user_id(actor: AuthorizationContext) -> UUID | None:
+    """Only staff actors populate foreign keys to users; public actors never do."""
+    identity = actor.audit_actor
+    return UUID(identity.actor_id) if identity.actor_type == "USER" and identity.actor_id else None
