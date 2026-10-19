@@ -11,7 +11,7 @@
     "lint": "pnpm --recursive run lint",
     "test": "pnpm --recursive run test",
     "verify": "python scripts/ci.py",
-    "format:check": "prettier --check apps/web packages package.json pnpm-workspace.yaml docker-compose.yml infra .github/workflows",
+    "format:check": "prettier --check apps/web packages package.json pnpm-workspace.yaml docker-compose.yml infra ../.github/workflows",
     "storage:install": "python scripts/install_storage.py",
     "storage:local": "python scripts/api.py storage-local start",
     "storage:stop": "python scripts/api.py storage-local stop",

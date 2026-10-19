@@ -3,8 +3,8 @@ services:
     name: happy-platform-api
     branch: development
     runtime: docker
-    dockerContext: .
-    dockerfilePath: ./infra/deployment/api.Dockerfile
+    dockerContext: ./HAPPY_PLATFORM_CODEX
+    dockerfilePath: ./HAPPY_PLATFORM_CODEX/infra/deployment/api.Dockerfile
     preDeployCommand: alembic upgrade head
     healthCheckPath: /api/v1/health/ready
     autoDeployTrigger: checksPass
@@ -96,8 +96,8 @@ services:
     name: happy-platform-web
     branch: development
     runtime: docker
-    dockerContext: .
-    dockerfilePath: ./infra/deployment/web.Dockerfile
+    dockerContext: ./HAPPY_PLATFORM_CODEX
+    dockerfilePath: ./HAPPY_PLATFORM_CODEX/infra/deployment/web.Dockerfile
     healthCheckPath: /
     autoDeployTrigger: checksPass
     envVars:
@@ -116,8 +116,8 @@ services:
     name: happy-background-worker
     branch: development
     runtime: docker
-    dockerContext: .
-    dockerfilePath: ./infra/deployment/api.Dockerfile
+    dockerContext: ./HAPPY_PLATFORM_CODEX
+    dockerfilePath: ./HAPPY_PLATFORM_CODEX/infra/deployment/api.Dockerfile
     dockerCommand: python -m app.workers.operations
     autoDeployTrigger: checksPass
     envVars:
@@ -169,8 +169,8 @@ services:
     branch: development
     runtime: docker
     schedule: "0 2 * * *"
-    dockerContext: .
-    dockerfilePath: ./infra/deployment/api.Dockerfile
+    dockerContext: ./HAPPY_PLATFORM_CODEX
+    dockerfilePath: ./HAPPY_PLATFORM_CODEX/infra/deployment/api.Dockerfile
     dockerCommand: python -m app.db.backup scheduled
     envVars:
       - key: APP_ENV
@@ -211,8 +211,8 @@ services:
     branch: development
     runtime: docker
     schedule: "0 4 * * 0"
-    dockerContext: .
-    dockerfilePath: ./infra/deployment/api.Dockerfile
+    dockerContext: ./HAPPY_PLATFORM_CODEX
+    dockerfilePath: ./HAPPY_PLATFORM_CODEX/infra/deployment/api.Dockerfile
     dockerCommand: python -m app.db.backup restore-latest
     envVars:
       - key: APP_ENV

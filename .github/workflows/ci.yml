@@ -13,6 +13,9 @@ permissions:
 jobs:
   foundation:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: HAPPY_PLATFORM_CODEX
     services:
       postgres:
         image: postgres:16-alpine
@@ -46,6 +49,7 @@ jobs:
         with:
           node-version: "22"
           cache: pnpm
+          cache-dependency-path: HAPPY_PLATFORM_CODEX/pnpm-lock.yaml
       - name: Install dependencies
         run: |
           python -m venv .venv
@@ -67,5 +71,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: foundation-browser-results
-          path: apps/web/test-results
+          path: HAPPY_PLATFORM_CODEX/apps/web/test-results
           retention-days: 7
