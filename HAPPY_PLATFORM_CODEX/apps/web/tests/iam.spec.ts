@@ -30,8 +30,14 @@ test("authorized staff can inspect integration operations", async ({
   await page
     .getByRole("button", { name: "Refresh operations", exact: true })
     .click();
-  expect((await response).status()).toBe(200);
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  const result = await response;
+  expect(result.status()).toBe(200);
+  expect(Array.isArray((await result.json()).items)).toBe(true);
+  await expect(
+    page
+      .getByRole("region", { name: "Workspace content", exact: true })
+      .getByRole("alert"),
+  ).toHaveCount(0);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
