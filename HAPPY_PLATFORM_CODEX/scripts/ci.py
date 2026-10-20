@@ -42,6 +42,7 @@ def main() -> int:
         ("Backend lint", [sys.executable, "scripts/api.py", "lint"]),
         ("Backend types", [sys.executable, "scripts/api.py", "type-check"]),
         ("Database migration", [sys.executable, "scripts/api.py", "migrate"]),
+        ("Migration model drift", [sys.executable, "scripts/api.py", "migration-check"]),
         ("Backend unit and live integration tests", [sys.executable, "scripts/api.py", "test"]),
         ("JavaScript formatting", [package_manager, "format:check"]),
         ("Frontend lint", [package_manager, "lint"]),

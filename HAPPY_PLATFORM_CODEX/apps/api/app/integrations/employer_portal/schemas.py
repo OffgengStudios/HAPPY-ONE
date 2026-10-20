@@ -1,13 +1,17 @@
+from datetime import date
 from typing import Annotated, Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field, HttpUrl, model_validator
+from pydantic import BaseModel, EmailStr, Field, HttpUrl, field_validator, model_validator
+
+from app.modules.demand.schemas import Frequency, Money, RequirementFields, normalize_phone
 
 Short = Annotated[str, Field(min_length=1, max_length=200)]
 Text = Annotated[str, Field(min_length=1, max_length=5000)]
 
 
 class PortalVacancy(BaseModel):
+    model_config = {"populate_by_name": True, "extra": "forbid"}
     vacancy_id: str | None = Field(default=None, max_length=200, alias="vacancyId")
     job_title: Short = Field(alias="jobTitle")
     location: Short
@@ -15,6 +19,30 @@ class PortalVacancy(BaseModel):
     openings: int = Field(default=1, ge=1, le=1000)
     compensation: Short | None = None
     description: Text | None = None
+    salary_min: Money | None = None
+    salary_max: Money | None = None
+    salary_frequency: Frequency | None = None
+    work_days: Annotated[str, Field(max_length=150)] | None = None
+    work_hours: Annotated[str, Field(max_length=150)] | None = None
+    accommodation: bool | None = None
+    benefits: list[Annotated[str, Field(min_length=1, max_length=500)]] = Field(
+        default_factory=list, max_length=20
+    )
+    deadline: date | None = None
+    requirements: list[RequirementFields] = Field(default_factory=list, max_length=50)
+
+    @model_validator(mode="after")
+    def salary(self) -> Self:
+        if self.salary_min is not None or self.salary_max is not None:
+            if not self.salary_frequency:
+                raise ValueError("Salary requires a frequency.")
+            if (
+                self.salary_min is not None
+                and self.salary_max is not None
+                and self.salary_min > self.salary_max
+            ):
+                raise ValueError("Check the salary range.")
+        return self
 
 
 class PortalSubmission(BaseModel):
@@ -35,6 +63,17 @@ class PortalSubmission(BaseModel):
     signature_file_id: str = Field(min_length=1, max_length=200, alias="signatureFileId")
     vacancies: list[PortalVacancy] = Field(min_length=1, max_length=20)
     document_ids: list[str] = Field(default_factory=list, max_length=10, alias="documentIds")
+    industry: Annotated[str, Field(max_length=60)] | None = None
+    district: Annotated[str, Field(max_length=60)] | None = None
+    address: Text | None = None
+    partnership_type: Literal["TRAINING", "RECRUITMENT", "COMBINED"] = "RECRUITMENT"
+    partnership_start_date: date | None = None
+
+    @field_validator("contact_phone")
+    @classmethod
+    def phone(cls, value: str) -> str:
+        normalize_phone(value)
+        return value
 
     @model_validator(mode="after")
     def consent(self) -> Self:

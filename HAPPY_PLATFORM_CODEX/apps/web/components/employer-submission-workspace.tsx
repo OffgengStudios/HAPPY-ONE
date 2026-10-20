@@ -16,8 +16,14 @@ type Submission = {
   organization_id: string | null;
   received_at: string;
   version: number;
+  possible_duplicates?: { id: string; name: string; reasons: string[] }[];
+  documents?: { id: string; kind: string; scan_status: string }[];
   submission?: {
     sector: string | null;
+    industry?: string | null;
+    district?: string | null;
+    address?: string | null;
+    partnership_type?: string;
     company_size: string | null;
     region: string | null;
     city: string | null;
@@ -34,6 +40,14 @@ type Submission = {
       openings: number;
       compensation: string | null;
       description: string | null;
+      salary_min?: string | null;
+      salary_max?: string | null;
+      salary_frequency?: string | null;
+      work_days?: string | null;
+      work_hours?: string | null;
+      benefits?: string[];
+      accommodation?: boolean | null;
+      requirements?: { criterion_type: string; value_json: unknown }[];
     }[];
   };
 };
@@ -210,6 +224,10 @@ export function EmployerSubmissionWorkspace() {
                   {[
                     ["Sector", row.submission.sector],
                     ["Region", row.submission.region],
+                    ["District", row.submission.district],
+                    ["Industry", row.submission.industry],
+                    ["Partnership", row.submission.partnership_type],
+                    ["Address", row.submission.address],
                     ["City", row.submission.city],
                     ["Company size", row.submission.company_size],
                     ["Contact", row.submission.contact_name],
@@ -235,9 +253,63 @@ export function EmployerSubmissionWorkspace() {
                         {vacancy.employment_type.replaceAll("_", " ")} ·{" "}
                         {vacancy.openings} openings
                       </p>
+                      <p className="mt-1 text-xs text-muted">
+                        Salary: {vacancy.salary_min ?? "Not provided"} to{" "}
+                        {vacancy.salary_max ?? "Not provided"}{" "}
+                        {vacancy.salary_frequency ?? ""}
+                      </p>
+                      <p className="mt-1 text-xs text-muted">
+                        Schedule: {vacancy.work_days ?? "Not provided"}{" "}
+                        {vacancy.work_hours ?? ""}
+                      </p>
+                      <p className="mt-1 text-xs text-muted">
+                        Benefits:{" "}
+                        {vacancy.benefits?.join(", ") || "Not provided"}
+                      </p>
+                      {vacancy.requirements?.map((item, i) => (
+                        <p key={i} className="mt-1 break-words text-xs">
+                          {item.criterion_type}: {String(item.value_json)}
+                        </p>
+                      ))}
                     </div>
                   ))}
                 </div>
+                {row.possible_duplicates &&
+                  row.possible_duplicates.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="text-sm font-semibold">
+                        Possible existing employers
+                      </h4>
+                      {row.possible_duplicates.map((item) => (
+                        <p key={item.id} className="mt-1 text-sm">
+                          {item.name} ({item.reasons.join(", ")})
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                {row.documents && row.documents.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-semibold">Private documents</h4>
+                    {row.documents.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="mt-2 flex flex-wrap items-center gap-2 text-sm"
+                      >
+                        <span>
+                          {doc.kind}: {doc.scan_status}
+                        </span>
+                        {doc.scan_status === "AVAILABLE" && (
+                          <a
+                            className="command"
+                            href={`/api/v1/integrations/employer-portal/submissions/${row.id}/documents/${doc.id}/download`}
+                          >
+                            Download {doc.kind}
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {["NEW", "NEEDS_REVIEW"].includes(row.status) && (
                   <div className="mt-6 space-y-4">
                     <label className="block text-sm">

@@ -11,6 +11,7 @@ from app.integrations.cv_parser import get_cv_parser
 from app.modules.cv_parser.models import ParserJob
 from app.modules.cv_parser.service import process_job
 from app.modules.iam.models import now
+from app.modules.iam.service import audit
 from app.modules.supply.models import Document, Participant
 
 WORKER_ID = f"{socket.gethostname()}:{os.getpid()}"
@@ -24,7 +25,6 @@ def run_once() -> bool:
                 ParserJob.status.in_(["QUEUED", "RUNNING"]),
                 or_(ParserJob.next_attempt_at.is_(None), ParserJob.next_attempt_at <= now()),
                 or_(ParserJob.lease_expires_at.is_(None), ParserJob.lease_expires_at < now()),
-                ParserJob.attempt_count < settings.cv_parser_max_attempts,
                 ParserJob.archived_at.is_(None),
             )
             .order_by(ParserJob.created_at, ParserJob.id)
@@ -32,11 +32,40 @@ def run_once() -> bool:
         )
         if not job:
             return False
+        if job.attempt_count >= settings.cv_parser_max_attempts:
+            # A worker can die during its final attempt. Expired final leases
+            # must become terminal instead of remaining RUNNING forever.
+            job.status = "FAILED"
+            job.error_code = "RETRY_LIMIT_EXCEEDED"
+            job.error_message = "The parser retry limit was reached. Staff may retry after review."
+            job.completed_at = now()
+            job.lease_owner = None
+            job.lease_expires_at = None
+            document = db.get(Document, job.document_id)
+            participant = db.get(Participant, document.participant_id) if document else None
+            if participant:
+                participant.cv_status = (
+                    "READY" if participant.current_cv_id == job.document_id else "UPLOADED"
+                )
+            audit(
+                db,
+                "cv_parser.failed",
+                None,
+                "cv_parser_job",
+                job.id,
+                changes={"error_code": job.error_code},
+            )
+            db.commit()
+            return True
         job.status = "RUNNING"
         job.attempt_count += 1
         job.started_at = job.started_at or now()
         job.lease_owner = WORKER_ID
-        job.lease_expires_at = now() + timedelta(minutes=5)
+        job.lease_expires_at = now() + timedelta(
+            seconds=max(
+                settings.background_job_lease_seconds, settings.cv_parser_timeout_seconds + 30
+            )
+        )
         db.commit()
         document = db.get(Document, job.document_id)
         participant = db.get(Participant, document.participant_id) if document else None

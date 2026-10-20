@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 import urllib.request
@@ -54,6 +55,10 @@ def postgres_url(value: str) -> URL:
 
 
 def executable(name: str) -> str:
+    # Client-only Linux images have pg_dump/pg_restore without server pg_ctl.
+    binary = shutil.which(name)
+    if binary:
+        return binary
     suffix = ".exe" if os.name == "nt" else ""
     return str(find_binary_directory() / f"{name}{suffix}")
 

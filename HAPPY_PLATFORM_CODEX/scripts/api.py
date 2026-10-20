@@ -41,6 +41,7 @@ COMMANDS = {
         ],
     ),
     "migrate": (API, ["-m", "alembic", "upgrade", "head"]),
+    "migration-check": (API, ["-m", "alembic", "check"]),
     "db-setup": (API, ["-m", "app.db.setup"]),
     "db-local": (API, ["-m", "app.db.local"]),
     "db-backup": (API, ["-m", "app.db.backup"]),

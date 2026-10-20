@@ -27,7 +27,10 @@ class RequestSizeMiddleware:
             await self.app(scope, receive, send)
             return
         path = scope["path"]
-        is_upload = path.startswith("/api/v1/participants/") and path.endswith("/cv")
+        is_upload = (path.startswith("/api/v1/participants/") and path.endswith("/cv")) or path in {
+            "/api/v1/participant-intake",
+            "/api/v1/employer-intake",
+        }
         limit = settings.file_max_bytes + 262144 if is_upload else 524288
         body = bytearray()
         while True:
@@ -72,6 +75,10 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         response.headers[REQUEST_ID_HEADER] = request_id
         response.headers["X-Content-Type-Options"] = "nosniff"
+        if request.url.path.startswith("/api/v1/participant-intake") or request.url.path.startswith(
+            "/api/v1/employer-intake"
+        ):
+            response.headers["Cache-Control"] = "no-store"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"

@@ -82,7 +82,14 @@ test("MERL staff schedules a follow-up, records an outcome and sees dashboard ev
     .fill("Read-only Browser Vacancy");
   await dialog.locator('input[type="checkbox"]').nth(1).check();
   await save(page, "Record verified outcome");
-  await expect(page.getByText("Impact story", { exact: true })).toBeVisible();
+  const outcome = page.locator(".data-row").filter({
+    has: page.getByText(`Esi MERL Fixture ${info.project.name}`, {
+      exact: true,
+    }),
+  });
+  await expect(
+    outcome.getByText("Impact story", { exact: true }),
+  ).toBeVisible();
 
   await navigate(page, "Dashboard");
   await expect(

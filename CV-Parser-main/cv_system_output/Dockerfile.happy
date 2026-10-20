@@ -1,0 +1,10 @@
+FROM python:3.12-slim
+WORKDIR /service
+COPY requirements-happy.txt .
+RUN pip install --no-cache-dir -r requirements-happy.txt
+COPY happy_service.py config.py logger.py skills_taxonomy.py ./
+COPY parser ./parser
+COPY classifier ./classifier
+RUN useradd --create-home parser && chown -R parser:parser /service
+USER parser
+CMD ["uvicorn", "happy_service:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]

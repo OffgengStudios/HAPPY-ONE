@@ -11,6 +11,7 @@ from app.modules.cv_parser.models import ParserJob, ParserResult, ParserReview
 from app.modules.cv_parser.schemas import ReviewInput
 from app.modules.demand.schemas import normalize_phone
 from app.modules.demand.service import changed
+from app.modules.iam.actors import AuthorizationContext, staff_user_id
 from app.modules.iam.dependencies import Principal
 from app.modules.iam.models import now
 from app.modules.iam.service import audit
@@ -88,9 +89,11 @@ def start_job(
     db: Session,
     document: Document,
     participant: Participant,
-    actor: Principal,
+    actor: AuthorizationContext,
     request: Request,
     parser: CvParser,
+    *,
+    commit: bool = True,
 ) -> ParserJob:
     if document.document_type != "CV" or document.scan_status != "AVAILABLE":
         raise ApiError(409, "CV_NOT_PARSEABLE", "Only an available, scanned CV can be parsed.")
@@ -110,16 +113,17 @@ def start_job(
         input_categories=INPUT_CATEGORIES,
         attempt_count=0,
         next_attempt_at=now(),
-        created_by=actor.user.id,
-        updated_by=actor.user.id,
+        created_by=staff_user_id(actor),
+        updated_by=staff_user_id(actor),
     )
     db.add(job)
     participant.cv_status = "PARSING"
-    changed(participant, actor.user.id)
+    changed(participant, staff_user_id(actor))
     db.flush()
     audit(db, "cv_parser.queued", actor.audit_actor, "cv_parser_job", job.id, request)
-    db.commit()
-    db.refresh(job)
+    if commit:
+        db.commit()
+        db.refresh(job)
     return job
 
 
@@ -196,7 +200,6 @@ def process_job(
             result="FAILURE",
             changes={"error_code": job.error_code},
         )
-    assert job.created_by is not None
     changed(participant, job.created_by)
     changed(job, job.created_by)
     job.lease_expires_at = None

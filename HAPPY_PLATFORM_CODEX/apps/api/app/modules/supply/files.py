@@ -4,7 +4,7 @@ import socket
 import struct
 import zipfile
 from pathlib import PureWindowsPath
-from typing import Literal
+from typing import Literal, Protocol
 from uuid import uuid4
 from xml.etree import ElementTree
 
@@ -22,6 +22,12 @@ PDF = "application/pdf"
 DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 DOCX_MAIN = "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"
 ScanResult = Literal["AVAILABLE", "REJECTED", "SCANNING"]
+
+
+class StoredPrivateDocument(Protocol):
+    storage_key: str
+    size_bytes: int
+    sha256: str
 
 
 def validate_file(data: bytes, filename: str, declared: str) -> tuple[str, str]:
@@ -153,7 +159,7 @@ def upload(
     return document
 
 
-def verified_bytes(document: Document) -> bytes:
+def verified_bytes(document: StoredPrivateDocument) -> bytes:
     try:
         result = get_storage_client().get_object(
             Bucket=settings.s3_bucket, Key=document.storage_key

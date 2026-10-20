@@ -13,6 +13,28 @@ def test_postgres_url_rejects_non_postgres() -> None:
         backup.postgres_url("sqlite:///unsafe.db")
 
 
+@pytest.mark.parametrize("name", ["pg_dump", "pg_restore"])
+def test_backup_uses_client_on_path_without_server_installation(
+    name: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client = str(tmp_path / name)
+    monkeypatch.setattr(backup.shutil, "which", lambda value: client if value == name else None)
+    server_lookup = MagicMock(side_effect=ValueError("No server installed"))
+    monkeypatch.setattr(backup, "find_binary_directory", server_lookup)
+
+    assert backup.executable(name) == client
+    server_lookup.assert_not_called()
+
+
+def test_backup_falls_back_to_installed_postgres_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(backup.shutil, "which", lambda value: None)
+    monkeypatch.setattr(backup, "find_binary_directory", lambda: tmp_path)
+    suffix = ".exe" if backup.os.name == "nt" else ""
+    assert backup.executable("pg_restore") == str(tmp_path / f"pg_restore{suffix}")
+
+
 def test_verify_backup_checks_manifest_and_catalogue(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -23,6 +45,7 @@ def test_verify_backup_checks_manifest_and_catalogue(
     )
     command = MagicMock(stdout="TABLE public users\nTABLE DATA public alembic_version")
     monkeypatch.setattr(backup, "run", MagicMock(return_value=command))
+    monkeypatch.setattr(backup, "executable", lambda name: f"/synthetic/{name}")
 
     manifest = backup.verify_backup(archive)
 

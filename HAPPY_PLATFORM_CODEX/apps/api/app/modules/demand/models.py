@@ -167,6 +167,8 @@ class Vacancy(Record, Base):
     work_days_text: Mapped[str | None] = mapped_column(String(150))
     work_hours_text: Mapped[str | None] = mapped_column(String(150))
     accommodation_available: Mapped[bool | None] = mapped_column(Boolean)
+    deadline: Mapped[date | None] = mapped_column(Date)
+    benefits: Mapped[list[str]] = mapped_column(JSON, default=list, server_default="[]")
     required_headcount: Mapped[int] = mapped_column(Integer)
     owner_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
     demand_owner_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))

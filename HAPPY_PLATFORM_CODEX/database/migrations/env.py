@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.db.base import Base
 from app.integrations.employer_portal import models as employer_portal_models  # noqa: F401
 from app.integrations.hamis import models as hamis_models  # noqa: F401
+from app.integrations.intake import models as intake_models  # noqa: F401
 from app.modules.cv_parser import models as cv_parser_models  # noqa: F401
 from app.modules.demand import models as demand_models  # noqa: F401
 from app.modules.external_references import models as reference_models  # noqa: F401

@@ -240,8 +240,8 @@ def parse_cv(text: str) -> ParsedCV:
         result.skills = result.skills or fallback.skills
 
     log.info(
-        f"Parsed: name={result.name!r}, email={result.email!r}, "
-        f"phone={result.phone!r}, skills={len(result.skills)}"
+        f"Parsed field presence: name={bool(result.name)}, email={bool(result.email)}, "
+        f"phone={bool(result.phone)}, skills={len(result.skills)}"
     )
     return result
 

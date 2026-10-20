@@ -74,6 +74,9 @@ textarea {
     @apply min-w-0 rounded-lg border border-border bg-white p-4 text-left hover:bg-primary-subtle;
     box-shadow: 0 8px 24px hsl(var(--heading) / 0.05);
   }
+  .metric-card:hover .text-muted {
+    @apply text-foreground;
+  }
 }
 
 [aria-label="Workspace content"] h2 {

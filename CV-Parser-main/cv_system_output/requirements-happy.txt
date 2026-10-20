@@ -1,0 +1,8 @@
+# Isolated processing runtime: no candidate DB, Sheets, matching or WhatsApp.
+fastapi>=0.115,<1
+uvicorn[standard]>=0.32,<1
+pydantic>=2.11,<3
+pydantic-settings>=2.10,<3
+pdfplumber>=0.11,<0.12
+python-docx>=1.1.2,<2
+phonenumbers>=9,<10

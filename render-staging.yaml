@@ -1,0 +1,197 @@
+# Isolated staging resources. Do not apply these names to production services.
+databases:
+  - name: happy-one-staging-db
+    databaseName: happy_staging
+    user: happy_staging
+    ipAllowList: []
+
+services:
+  - name: happy-one-staging-parser
+    type: pserv
+    runtime: docker
+    branch: integration/happy-ecosystem
+    dockerContext: CV-Parser-main/cv_system_output
+    dockerfilePath: CV-Parser-main/cv_system_output/Dockerfile.happy
+    envVars:
+      - key: HAPPY_PARSER_TOKEN
+        generateValue: true
+    autoDeployTrigger: checksPass
+
+  - name: happy-one-staging-api
+    type: web
+    runtime: docker
+    branch: integration/happy-ecosystem
+    dockerContext: HAPPY_PLATFORM_CODEX
+    dockerfilePath: HAPPY_PLATFORM_CODEX/infra/deployment/api.Dockerfile
+    preDeployCommand: alembic upgrade head
+    healthCheckPath: /api/v1/health/ready
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: APP_ENV
+        value: staging
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: IDENTITY_ENCRYPTION_KEY
+        sync: false
+      - key: IDENTITY_LOOKUP_KEY
+        sync: false
+      - key: API_CORS_ORIGINS
+        sync: false
+      - key: SUPPLY_PRIVACY_NOTICE_VERSION
+        sync: false
+      - key: SUPPLY_PRIVACY_NOTICE_TEXT
+        sync: false
+      - key: EMPLOYER_INTAKE_NOTICE_TEXT
+        sync: false
+      - key: SUPPLY_ONBOARDING_POLICY_APPROVED
+        sync: false
+      - key: SUPPLY_REQUIRED_SECTIONS
+        sync: false
+      - key: SUPPLY_REQUIRED_FIELDS
+        sync: false
+      - key: FILE_SCAN_HOST
+        sync: false
+      - key: FILE_SCAN_PORT
+        value: "3310"
+      - key: CV_PARSER_HOSTPORT
+        fromService:
+          name: happy-one-staging-parser
+          type: pserv
+          property: hostport
+      - key: CV_PARSER_TOKEN
+        fromService:
+          name: happy-one-staging-parser
+          type: pserv
+          envVarKey: HAPPY_PARSER_TOKEN
+      - key: DATABASE_URL
+        fromDatabase:
+          name: happy-one-staging-db
+          property: connectionString
+
+  - name: happy-one-staging-worker
+    type: worker
+    runtime: docker
+    branch: integration/happy-ecosystem
+    dockerContext: HAPPY_PLATFORM_CODEX
+    dockerfilePath: HAPPY_PLATFORM_CODEX/infra/deployment/api.Dockerfile
+    dockerCommand: python -m app.workers.operations
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: APP_ENV
+        value: staging
+      - key: DATABASE_URL
+        fromDatabase:
+          name: happy-one-staging-db
+          property: connectionString
+      - key: S3_ENDPOINT_URL
+        fromService:
+          name: happy-one-staging-api
+          type: web
+          envVarKey: S3_ENDPOINT_URL
+      - key: S3_REGION
+        fromService:
+          name: happy-one-staging-api
+          type: web
+          envVarKey: S3_REGION
+      - key: S3_BUCKET
+        fromService:
+          name: happy-one-staging-api
+          type: web
+          envVarKey: S3_BUCKET
+      - key: S3_ACCESS_KEY_ID
+        fromService:
+          name: happy-one-staging-api
+          type: web
+          envVarKey: S3_ACCESS_KEY_ID
+      - key: S3_SECRET_ACCESS_KEY
+        fromService:
+          name: happy-one-staging-api
+          type: web
+          envVarKey: S3_SECRET_ACCESS_KEY
+      - key: IDENTITY_ENCRYPTION_KEY
+        fromService:
+          name: happy-one-staging-api
+          type: web
+          envVarKey: IDENTITY_ENCRYPTION_KEY
+      - key: IDENTITY_LOOKUP_KEY
+        fromService:
+          name: happy-one-staging-api
+          type: web
+          envVarKey: IDENTITY_LOOKUP_KEY
+      - key: FILE_SCAN_HOST
+        fromService:
+          name: happy-one-staging-api
+          type: web
+          envVarKey: FILE_SCAN_HOST
+      - key: FILE_SCAN_PORT
+        fromService:
+          name: happy-one-staging-api
+          type: web
+          envVarKey: FILE_SCAN_PORT
+      - key: CV_PARSER_HOSTPORT
+        fromService:
+          name: happy-one-staging-api
+          type: web
+          envVarKey: CV_PARSER_HOSTPORT
+      - key: CV_PARSER_TOKEN
+        fromService:
+          name: happy-one-staging-api
+          type: web
+          envVarKey: CV_PARSER_TOKEN
+      - key: API_CORS_ORIGINS
+        fromService:
+          name: happy-one-staging-api
+          type: web
+          envVarKey: API_CORS_ORIGINS
+
+  - name: happy-one-staging-staff
+    type: web
+    runtime: docker
+    branch: integration/happy-ecosystem
+    dockerContext: HAPPY_PLATFORM_CODEX
+    dockerfilePath: HAPPY_PLATFORM_CODEX/infra/deployment/web.Dockerfile
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NEXT_PUBLIC_APP_ENV
+        value: staging
+      - key: API_INTERNAL_URL
+        fromService:
+          name: happy-one-staging-api
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+
+  - name: happy-one-staging-hamis
+    type: web
+    runtime: static
+    branch: integration/happy-ecosystem
+    buildCommand: node scripts/build-intake.mjs hamis
+    staticPublishPath: frontend/dist
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: HAPPY_API_BASE_URL
+        fromService:
+          name: happy-one-staging-api
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+
+  - name: happy-one-staging-employer
+    type: web
+    runtime: static
+    branch: integration/happy-ecosystem
+    buildCommand: node scripts/build-intake.mjs employer
+    staticPublishPath: portal/dist
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: HAPPY_API_BASE_URL
+        fromService:
+          name: happy-one-staging-api
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
