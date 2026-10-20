@@ -85,10 +85,10 @@ jobs:
         run: |
           python scripts/install_storage.py
           APP_ENV=development pnpm storage:local
-      - name: Verify foundation
-        run: pnpm verify
       - name: Public intake browser integration
         run: python ../scripts/verify-intake.py
+      - name: Verify foundation
+        run: pnpm verify
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@v4

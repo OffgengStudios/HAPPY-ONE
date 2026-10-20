@@ -76,6 +76,14 @@ muted-label contrast; hovered card labels now use the foreground colour and the
 accessibility test explicitly exercises that state. Accessibility checks remain
 enabled with no exclusions.
 
+The subsequent hosted foundation verification passed **299 backend tests**,
+**100 staff desktop/mobile browser tests**, formatting, lint, types, migrations,
+production build and dependency audits. Its final public browser harness exposed
+a Linux-only fixture issue: PDF serialization requires a seekable stream, while
+stdout can be a pipe. The harness now serializes into `BytesIO` before writing
+the bytes, and public browser verification runs earlier in CI. The latest complete
+workflow result is available in the pull request checks.
+
 ## Remaining acceptance gates
 
 1. **Render is not set up yet.** Create/configure the staging workspace and apply

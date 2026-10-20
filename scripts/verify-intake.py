@@ -58,8 +58,9 @@ def main():
                 [
                     str(PYTHON),
                     "-c",
-                    "from pypdf import PdfWriter; import sys; w=PdfWriter(); "
-                    "w.add_blank_page(width=100,height=100); w.write(sys.stdout.buffer)",
+                    "from pypdf import PdfWriter; import io, sys; w=PdfWriter(); "
+                    "w.add_blank_page(width=100,height=100); target=io.BytesIO(); "
+                    "w.write(target); sys.stdout.buffer.write(target.getvalue())",
                 ],
                 capture_output=True,
                 check=True,
