@@ -37,9 +37,9 @@ introduced. Legacy systems remain isolated reference artifacts pending acceptanc
   regression additions. Python formatting/lint/strict types, Alembic upgrade and
   model drift check, web formatting/lint/types, four environment tests, production
   build, dependency consistency and dependency audits passed.
-- The final 296-test backend run supersedes that backend count. A focused staff
-  browser rerun checks the latest employer review UI and operations view; its
-  result is reported in the pull request. The new operations check scopes errors
+- The final 296-test backend run supersedes that backend count. The focused staff
+  browser rerun passed **4 desktop/mobile checks** for the latest employer review
+  UI and operations view. The new operations check scopes errors
   to workspace content because Next.js also has an empty route-announcer alert.
 - Render blueprint validated against Render's published JSON schema; all services
   track the same integration branch. This does not establish a live deployment.
@@ -57,6 +57,14 @@ not replace deployed human UAT across programme roles.
 Hosted CI is configured for parser, platform, HAMIS, Employer Intake and contracts.
 Consult the pull request checks for its actual result; local verification alone
 is not a hosted-CI pass.
+
+The first hosted run passed parser, HAMIS, Employer Intake and contracts. Linux
+reported 295 backend passes and one pre-existing backup executable discovery
+failure: client-only installations were incorrectly required to have `pg_ctl`.
+The backup utility now resolves the requested client on PATH first and retains
+the installed-directory fallback. Three regression cases cover client-only and
+fallback discovery; the manifest unit test no longer depends on host binaries.
+The final hosted run must pass these and the full platform checks.
 
 ## Remaining acceptance gates
 
