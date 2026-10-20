@@ -5,6 +5,24 @@ const password = process.env.HAPPY_E2E_PASSWORD;
 test.skip(!password, "Run pnpm verify with the isolated browser API.");
 
 async function expectAccessible(page: Page) {
+  // Axe must inspect the settled interface, not a partially faded text colour.
+  // Waiting also handles a workspace animation replaced during initial routing.
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    while (true) {
+      const animations = document
+        .getAnimations()
+        .filter(
+          (animation) =>
+            animation.playState === "running" &&
+            Number.isFinite(animation.effect?.getComputedTiming().endTime),
+        );
+      if (!animations.length) break;
+      await Promise.allSettled(
+        animations.map((animation) => animation.finished),
+      );
+    }
+  });
   const result = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
     .analyze();

@@ -84,6 +84,12 @@ stdout can be a pipe. The harness now serializes into `BytesIO` before writing
 the bytes, and public browser verification runs earlier in CI. The latest complete
 workflow result is available in the pull request checks.
 
+The next run passed the public browser harness and all 299 backend tests, but
+two accessibility scans sampled the workspace's 260 ms entrance fade before
+completion. The accessibility helper now waits for finite UI animations to
+finish before running Axe, including replacement animations during initial
+routing. It does not disable motion, exclude elements or suppress any WCAG rule.
+
 ## Remaining acceptance gates
 
 1. **Render is not set up yet.** Create/configure the staging workspace and apply
