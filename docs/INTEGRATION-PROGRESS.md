@@ -26,8 +26,10 @@ introduced. Legacy systems remain isolated reference artifacts pending acceptanc
   includes public intake security/idempotency/duplicates, private staged employer
   document download, central provenance, scanner recovery, parser outage/restart
   and exhausted final-lease recovery.
-- Real parser HTTP contract: **12 passed**; isolated parser service contract:
+- Real parser HTTP contract: **14 passed**; isolated parser service contract:
   **8 passed**. PDF and DOCX fixtures exercise real extraction and classification.
+  Failure-path tests reproduce private exception content during DOCX extraction
+  and structured parsing; the dedicated runtime retains only safe diagnostics.
 - Public frontend contract/asset checks: **5 passed**; both static builds passed.
 - Participant and employer desktop/mobile browser journeys against a live local
   API passed, including browser draft restoration, final submission, a genuine CV

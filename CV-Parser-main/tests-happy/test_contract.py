@@ -95,3 +95,30 @@ def test_invalid_base64_and_mime_return_safe_error(client):
 def test_health_does_not_require_candidate_database(client):
     assert client.get("/api/v1/health").json()["status"] == "ok"
     assert client.get("/api/v1/candidates").status_code == 404
+
+
+@pytest.mark.parametrize("stage", ["extraction", "structured_parsing"])
+def test_processing_failures_do_not_log_private_exception_content(
+    client, monkeypatch, caplog, stage
+):
+    from parser import extractor
+    from parser import parser as fields
+
+    private = "private-cv-person@example.org"
+
+    def broken(*args, **kwargs):
+        raise ValueError(private)
+
+    if stage == "extraction":
+        monkeypatch.setattr(extractor, "Document", broken)
+    else:
+        monkeypatch.setattr(fields, "_group_lines_into_sections", broken)
+    with caplog.at_level(logging.WARNING):
+        response = client.post(
+            PATH, json=request("docx"), headers={"Authorization": "Bearer " + TOKEN}
+        )
+    assert response.status_code == (422 if stage == "extraction" else 200)
+    assert private not in response.text
+    assert private not in caplog.text
+    assert "Traceback" not in caplog.text
+    assert caplog.records  # A safe operational diagnostic is retained.

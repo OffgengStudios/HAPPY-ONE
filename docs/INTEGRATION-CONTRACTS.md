@@ -102,7 +102,9 @@ The parser has a separate `happy_service:app` ASGI entrypoint and
 `requirements-happy.txt`. It imports real extraction, parsing, skill and
 classification code, without importing the candidate API/database, Sheets,
 matching or WhatsApp. Temporary files use generated names and are removed.
-No candidate profile is persisted. Logs do not record extracted names/contact data.
+No candidate profile is persisted. The dedicated runtime sanitizes reused engine
+diagnostics, exception content and tracebacks before they reach log handlers;
+extracted names/contact data are not logged.
 
 Response: schema version 1, provider/model labels and bounded suggestions for
 first name, surname, other names, phone, email, skills and job role. Classification

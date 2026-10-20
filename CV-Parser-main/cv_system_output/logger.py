@@ -7,6 +7,18 @@ import sys
 from pathlib import Path
 
 
+class _ProcessingLogFilter(logging.Filter):
+    """Reused extraction libraries must not log CV text or raw exceptions."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.msg = "cv_processing_diagnostic"
+        record.args = ()
+        record.exc_info = None
+        record.exc_text = None
+        record.stack_info = None
+        return True
+
+
 def get_logger(name: str) -> logging.Logger:
     """
     Returns a named logger with consistent formatting.
@@ -15,6 +27,8 @@ def get_logger(name: str) -> logging.Logger:
     logger = logging.getLogger(name)
 
     if os.environ.get("HAPPY_PROCESSING_ONLY") == "1":
+        if not any(isinstance(item, _ProcessingLogFilter) for item in logger.filters):
+            logger.addFilter(_ProcessingLogFilter())
         return logger
 
     from config import settings
