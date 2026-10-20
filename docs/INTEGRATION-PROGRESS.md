@@ -68,6 +68,14 @@ the installed-directory fallback. Three regression cases cover client-only and
 fallback discovery; the manifest unit test no longer depends on host binaries.
 The final hosted run must pass these and the full platform checks.
 
+The next hosted run passed **299 backend tests** and **97 of 100 staff browser
+checks**. Two existing mobile tests used ambiguous labels after desktop records
+were created; they now identify their newly created marketing request and the
+correct participant's outcome. The dashboard hover state also exposed insufficient
+muted-label contrast; hovered card labels now use the foreground colour and the
+accessibility test explicitly exercises that state. Accessibility checks remain
+enabled with no exclusions.
+
 ## Remaining acceptance gates
 
 1. **Render is not set up yet.** Create/configure the staging workspace and apply

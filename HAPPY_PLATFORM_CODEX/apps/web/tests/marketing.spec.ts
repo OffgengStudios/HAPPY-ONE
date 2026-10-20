@@ -37,9 +37,19 @@ test("Marketing staff receives a request and moves a campaign into production", 
     .locator("textarea")
     .fill(`Recruitment promotion ${info.project.name}`);
   await dialog.getByLabel("Priority").selectOption("HIGH");
+  const created = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/v1/marketing/requests") &&
+      response.request().method() === "POST",
+  );
   await save(page, "Create marketing request");
+  const response = await created;
+  expect(response.status()).toBe(201);
+  const request = await response.json();
   await expect(
-    page.getByText("Training promotion", { exact: true }),
+    page
+      .getByRole("button", { name: new RegExp(request.request_code) })
+      .getByText("Training promotion", { exact: true }),
   ).toBeVisible();
 
   await navigate(page, "Campaigns");

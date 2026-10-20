@@ -28,6 +28,7 @@ test("sign-in and authenticated Management surfaces have no automated WCAG A/AA 
   await expect(
     page.getByRole("heading", { name: "Performance overview", exact: true }),
   ).toBeVisible();
+  await page.getByRole("button", { name: /KPI-PLC-002/ }).hover();
   await expectAccessible(page);
 });
 
