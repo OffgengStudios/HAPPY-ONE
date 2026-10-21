@@ -1,0 +1,47 @@
+{
+  "staff_login": {
+    "status": 200,
+    "http_only_session": true
+  },
+  "final_attempt_worker_crash": {
+    "report": {
+      "reclaimed": null,
+      "status": "RUNNING",
+      "attempts": 1,
+      "lease_expires_at": "2026-10-20 18:17:44.816866+00:00",
+      "completed_at": null
+    },
+    "hamis": {
+      "reclaimed": null,
+      "status": "PROCESSING",
+      "attempts": 1,
+      "lease_expires_at": "2026-10-20 18:17:45.100281+00:00",
+      "processed_at": null
+    }
+  },
+  "concurrent_export_claims": {
+    "distinct": true,
+    "matches_pending_jobs": true
+  },
+  "valid_large_employer_document": {
+    "bytes": 1049102,
+    "configured_file_max_bytes": 10485760,
+    "validator_accepts": true,
+    "http_status": 413,
+    "error_code": "REQUEST_TOO_LARGE"
+  },
+  "anonymous_internal_access": {
+    "/api/v1/participants": 401,
+    "/api/v1/organizations": 401,
+    "/api/v1/reports/kpis?date_from=2026-01-01&date_to=2026-12-31": 401
+  },
+  "marketing_placement_mutation": {
+    "status": 403,
+    "code": "PERMISSION_DENIED"
+  },
+  "backup_failure_secret_exposure": {
+    "exit_code": 1,
+    "password_in_failure_output": true,
+    "called_process_error": true
+  }
+}

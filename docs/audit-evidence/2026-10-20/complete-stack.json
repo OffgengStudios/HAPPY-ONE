@@ -1,0 +1,118 @@
+{
+  "http_workflow": {
+    "all_domain_mutations_via_api": true,
+    "cv_waiver": "explicit permitted staff action with audit reason; no scan approval substituted",
+    "initial_placement": "START_PENDING",
+    "after_actual_start": "AWAITING_FIRST_INCOME",
+    "after_first_income": "CONFIRMED",
+    "duplicate_income_confirmation_status": 200,
+    "headcount": {
+      "required": 3,
+      "started": 1,
+      "confirmed_placements": 1,
+      "outstanding": 2
+    },
+    "programme_placement_kpi": "1"
+  },
+  "production_build_seconds": 39.841,
+  "simultaneous_stack_http": {
+    "staff": 200,
+    "hamis": 200,
+    "employer": 200,
+    "api_readiness": 200
+  },
+  "public_artifact_secret_scan": {
+    "hamis": {
+      "files": 7,
+      "contains_actual_audit_secret": false
+    },
+    "employer": {
+      "files": 7,
+      "contains_actual_audit_secret": false
+    }
+  },
+  "audit_processes_stopped": true,
+  "production_browser_login": {
+    "passed": true,
+    "context": "production build over local TLS; test trusts self-signed CA"
+  },
+  "full_workflow_backup_restore": {
+    "revision": "0036_vacancy_terms",
+    "backup_seconds": 0.766,
+    "restore_seconds": 6.912,
+    "archive_bytes": 323401,
+    "row_comparisons": [
+      {
+        "table": "people",
+        "rows": 3,
+        "identical": true
+      },
+      {
+        "table": "participants",
+        "rows": 3,
+        "identical": true
+      },
+      {
+        "table": "organizations",
+        "rows": 1,
+        "identical": true
+      },
+      {
+        "table": "organization_contacts",
+        "rows": 1,
+        "identical": true
+      },
+      {
+        "table": "vacancies",
+        "rows": 1,
+        "identical": true
+      },
+      {
+        "table": "candidate_vacancies",
+        "rows": 1,
+        "identical": true
+      },
+      {
+        "table": "interviews",
+        "rows": 1,
+        "identical": true
+      },
+      {
+        "table": "placements",
+        "rows": 1,
+        "identical": true
+      },
+      {
+        "table": "first_income_verifications",
+        "rows": 1,
+        "identical": true
+      },
+      {
+        "table": "follow_ups",
+        "rows": 1,
+        "identical": true
+      },
+      {
+        "table": "outcomes",
+        "rows": 1,
+        "identical": true
+      },
+      {
+        "table": "audit_events",
+        "rows": 54,
+        "identical": true
+      },
+      {
+        "table": "documents",
+        "rows": 1,
+        "identical": true
+      },
+      {
+        "table": "consents",
+        "rows": 3,
+        "identical": true
+      }
+    ],
+    "separate_database": true
+  }
+}
