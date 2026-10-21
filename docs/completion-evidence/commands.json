@@ -18,5 +18,20 @@
     "label": "04-worker-recovery-regressions",
     "exit_code": 0,
     "seconds": 67.53
+  },
+  {
+    "label": "05-private-logs-and-otlp",
+    "exit_code": 1,
+    "seconds": 8.676
+  },
+  {
+    "label": "06-private-telemetry-and-foundation",
+    "exit_code": 0,
+    "seconds": 9.147
+  },
+  {
+    "label": "07-actual-server-logs-and-otlp",
+    "exit_code": 0,
+    "seconds": 11.292
   }
 ]

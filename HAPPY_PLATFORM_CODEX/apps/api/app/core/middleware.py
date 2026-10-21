@@ -5,17 +5,39 @@ import time
 from datetime import UTC, datetime
 from uuid import uuid4
 
+from opentelemetry import trace
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.core.config import settings
+from app.core.private_telemetry import METHODS
 from app.core.version import RELEASE_VERSION
 
 REQUEST_ID_HEADER = "X-Request-ID"
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 logger = logging.getLogger("happy.access")
+
+
+def record_request(request: Request, request_id: str, status: int, started: float) -> None:
+    logger.info(
+        json.dumps(
+            {
+                "timestamp": datetime.now(UTC).isoformat(),
+                "level": "INFO",
+                "service": "happy-api",
+                "release_version": RELEASE_VERSION,
+                "environment": settings.app_env,
+                "request_id": request_id,
+                "method": request.method if request.method in METHODS else "_OTHER",
+                "route": getattr(request.scope.get("route"), "path", "<unmatched>"),
+                "status": status,
+                "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+            },
+            separators=(",", ":"),
+        )
+    )
 
 
 class RequestSizeMiddleware:
@@ -72,7 +94,12 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
         request_id = supplied if REQUEST_ID_PATTERN.fullmatch(supplied) else str(uuid4())
         request.state.request_id = request_id
         started = time.perf_counter()
-        response = await call_next(request)
+        trace.get_current_span().set_attribute("happy.request_id", request_id)
+        try:
+            response = await call_next(request)
+        except Exception:
+            record_request(request, request_id, 500, started)
+            raise
         response.headers[REQUEST_ID_HEADER] = request_id
         response.headers["X-Content-Type-Options"] = "nosniff"
         if request.url.path.startswith("/api/v1/participant-intake") or request.url.path.startswith(
@@ -86,21 +113,5 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
             response.headers["Content-Security-Policy"] = (
                 "default-src 'none'; frame-ancestors 'none'"
             )
-        logger.info(
-            json.dumps(
-                {
-                    "timestamp": datetime.now(UTC).isoformat(),
-                    "level": "INFO",
-                    "service": "happy-api",
-                    "release_version": RELEASE_VERSION,
-                    "environment": settings.app_env,
-                    "request_id": request_id,
-                    "method": request.method,
-                    "route": request.url.path,
-                    "status": response.status_code,
-                    "duration_ms": round((time.perf_counter() - started) * 1000, 2),
-                },
-                separators=(",", ":"),
-            )
-        )
+        record_request(request, request_id, response.status_code, started)
         return response

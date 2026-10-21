@@ -10,7 +10,7 @@ PYTHON = str(VENV_PYTHON) if VENV_PYTHON.exists() else sys.executable
 API = ROOT / "apps" / "api"
 TEST_DIRECTORY = ROOT / ".local" / "pytest" / uuid4().hex
 COMMANDS = {
-    "dev": (API, ["-m", "uvicorn", "app.main:app", "--reload"]),
+    "dev": (API, ["-m", "uvicorn", "app.main:app", "--reload", "--no-access-log"]),
     "lint": (
         ROOT,
         [

@@ -72,3 +72,39 @@ No hosted restart supervisor, queue alerts or monitoring delivery has been verif
 ### Next Task
 
 P1-01: prevent raw search values, callback codes, tokens and unhandled exception messages from entering duplicate access/error logs or exported spans; retain safe request IDs, route templates, status and timing. Verify emitted logs and actual OTLP transport with sentinels.
+
+## P1-01 — VERIFIED application boundary; hosted ingress NOT VERIFIED
+
+### Completed
+
+Structured access logs retain safe matched templates (unknown paths are not logged), correlation, normalized method, status and latency, including 500 failures. The application suppresses raw Uvicorn access logs and sanitizes server exception rendering. Supported API launchers explicitly disable the duplicate access logger. OTLP spans are reconstructed at the export boundary without request URLs/queries/headers, SQL values, events, exception text, unsafe names, links or vendor trace state. Metrics drop unapproved labels and resources use explicit operational metadata.
+
+### Evidence
+
+Audit source evidence showed search and real SSO callback markers in default access logs. New real Uvicorn tests send sentinel searches, callback codes, token queries, unmatched paths and an unhandled exception, then inspect actual server stdout/stderr and actual protobuf OTLP export from that server. Sentinels are absent; safe correlation and statuses remain. A separate deliberately contaminated span tests the real HTTP OTLP serialization boundary; a meter reader verifies identifier/query labels are removed while counts remain.
+
+### Files Changed
+
+- `HAPPY_PLATFORM_CODEX/apps/api/app/core/private_telemetry.py`
+- `HAPPY_PLATFORM_CODEX/apps/api/app/core/{middleware,observability}.py`
+- `HAPPY_PLATFORM_CODEX/apps/api/app/main.py`
+- `HAPPY_PLATFORM_CODEX/scripts/api.py`
+- `HAPPY_PLATFORM_CODEX/infra/deployment/api.Dockerfile`
+- `HAPPY_PLATFORM_CODEX/docs/18-DEVOPS-OBSERVABILITY.md`
+- `HAPPY_PLATFORM_CODEX/apps/api/tests/test_telemetry_privacy.py`
+
+### Tests Added/Changed
+
+Three privacy tests: actual default Uvicorn access/error/application/OTLP output; contaminated span serialized by the real OTLP HTTP exporter; real SDK metric label filtering. Existing health/foundation checks also run.
+
+### Verification
+
+`python scripts/api.py test -q -k 'telemetry_privacy or foundation'`: **6 passed**, 307 deselected, 9.85 s pytest / 11.292 s command. Ruff and strict mypy pass. An earlier test expected a full prefixed route; the installed FastAPI version exposes matched unprefixed templates, so the assertion now checks the safe matched template rather than assuming a library-specific prefix.
+
+### Remaining Risk
+
+Managed ingress access/error logs and external collector/dashboard configuration remain **REQUIRES EXTERNAL INFRASTRUCTURE**. The runbook explicitly gates UAT/real participant data on sentinel checks through the actual public ingress, including an upstream failure. Local exporter checks do not certify Render's logs or alert delivery.
+
+### Next Task
+
+P1-02: neutralize spreadsheet formulas at the shared synchronous/background CSV boundary, preserve numeric/date values, verify actual public input through both exports, and verify spreadsheet interpretation if an application is available.

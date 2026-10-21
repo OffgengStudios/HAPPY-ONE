@@ -85,6 +85,31 @@ Implemented API access logs include service, request ID, method, route, response
 status and duration as structured JSON. Supplied request IDs are length- and
 character-restricted before they are accepted.
 
+The route is a matched template (some FastAPI versions expose it without router
+prefixes), or `<unmatched>`; raw unknown paths and query strings are not logged.
+The application suppresses the duplicate `uvicorn.access` logger even when a
+caller uses default Uvicorn options, and sanitizes exception details in the server
+error logger. Supported launch commands also use `--no-access-log`.
+
+Outgoing spans pass through a privacy exporter before OTLP serialization. It
+retains trace correlation, route/method/status, safe resource identifiers and
+timing, while removing URLs/query strings, headers, SQL/parameters, span events,
+exception messages/stacks, raw span names, links and vendor trace state. Metrics
+use an allowlist of operational labels; participant identifiers, query values and
+submitted content must never become labels. Do not enable HTTP-library wire/debug
+logging in a participant-data environment.
+
+Ingress access/error logs are an independent release gate. Configure a proxy or
+provider log sink to retain correlation ID, normalized method, status and timing,
+without `$request`, `$request_uri`, query strings, request headers, request bodies
+or raw error tracebacks. Even an access-log format without queries is insufficient
+if upstream error logs include the original URL. Before UAT, send sentinel search
+values and SSO codes through the actual public ingress, trigger a controlled
+upstream failure, and inspect all provider log destinations and OTLP dashboards.
+Disable or sanitize any additional raw log stream before using real participant
+data. Managed Render ingress logging and external collector behavior have not yet
+been verified; application tests do not certify those providers.
+
 ## 8. Alerts
 
 Create alerts for:
