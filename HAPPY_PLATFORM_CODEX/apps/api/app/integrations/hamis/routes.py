@@ -8,7 +8,7 @@ from app.core.errors import ApiError
 from app.integrations.hamis import service
 from app.integrations.hamis.auth import HamisActor
 from app.integrations.hamis.models import HamisInboundEvent
-from app.integrations.hamis.schemas import EventReview, HamisEvent
+from app.integrations.hamis.schemas import EventRetry, EventReview, HamisEvent
 from app.modules.iam.dependencies import Database, Principal, require
 from app.modules.iam.models import now
 from app.modules.iam.service import audit, page_query
@@ -66,6 +66,41 @@ def review_event(
     audit(
         db,
         "hamis.event_rejected",
+        actor.audit_actor,
+        "hamis_inbound_event",
+        row.id,
+        request,
+        changes={"reason": values.reason},
+    )
+    db.commit()
+    return service.event_view(row)
+
+
+@router.post("/integrations/hamis/events/{identifier}/retry", status_code=202)
+def retry_event(
+    identifier: UUID, values: EventRetry, db: Database, actor: ReviewActor, request: Request
+) -> dict[str, Any]:
+    row = db.get(HamisInboundEvent, identifier, with_for_update=True, populate_existing=True)
+    if not row:
+        raise ApiError(404, "HAMIS_EVENT_NOT_FOUND", "HAMIS event not found.")
+    if row.version != values.version:
+        raise ApiError(
+            409, "RECORD_VERSION_CONFLICT", "This event changed. Refresh before retrying."
+        )
+    if row.status != "FAILED":
+        raise ApiError(409, "HAMIS_EVENT_NOT_FAILED", "Only failed events can be retried.")
+    row.status = "RECEIVED"
+    row.attempt_count = 0
+    row.error_code = None
+    row.error_message = None
+    row.lease_owner = None
+    row.lease_expires_at = None
+    row.next_attempt_at = None
+    row.processed_at = None
+    row.version += 1
+    audit(
+        db,
+        "hamis.event_retried",
         actor.audit_actor,
         "hamis_inbound_event",
         row.id,

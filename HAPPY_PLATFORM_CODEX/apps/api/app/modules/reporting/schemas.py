@@ -47,3 +47,8 @@ class ExportRequest(Period):
     format: Literal["CSV"] = "CSV"
     include_sensitive: bool = False
     privacy_acknowledged: bool = False
+
+
+class ExportRetry(Version):
+    reason: Text
+    privacy_acknowledged: bool = False

@@ -35,3 +35,40 @@ Provider backup scheduling, offsite retention, alert delivery and full files/key
 ### Next Task
 
 P0-02: reconcile expired exhausted report claims, preserve live leases, expose authorized controlled retry, verify actual process death/lease expiry/restart and no duplicate output; apply equivalent semantics to retained HAMIS events.
+
+## P0-02 — VERIFIED backend recovery, 21 October 2026
+
+### Completed
+
+Report and retained legacy HAMIS claimers reconcile expired exhausted leases to FAILED / RETRY_LIMIT_EXCEEDED, clear lease state, timestamp completion and append failure audit. Valid leases are excluded. Processing locks and verifies current ownership; failure handling reacquires the lock and cannot overwrite a new owner. Retry endpoints require current permissions, an optimistic version and a reason; reports remain requester-owned and sensitive exports require renewed acknowledgement. A failed report retry form is available in Prepared exports. HAMIS participant sign-in remains absent.
+
+### Evidence
+
+The original audit killed the final-claim process and demonstrated permanent RUNNING/PROCESSING state. The new actual-process regression claims both jobs with one permitted attempt and a 30-second lease, terminates the actual child PID, confirms live leases are untouched, waits 31 seconds, restarts a fresh interpreter, verifies two terminal failure events, retries through authenticated APIs, and verifies one report object and one authoritative participant. Independent concurrent sessions claim distinct pending reports. The first attempted pre-fix regression on 21 October failed during fixture setup because the overnight-stopped database was unavailable; it is not counted as a functional regression result. PostgreSQL was restarted without resetting its data.
+
+### Files Changed
+
+- `HAPPY_PLATFORM_CODEX/apps/api/app/modules/reporting/{worker,routes,schemas,service}.py`
+- `HAPPY_PLATFORM_CODEX/apps/api/app/integrations/hamis/{worker,routes,schemas,service}.py`
+- `HAPPY_PLATFORM_CODEX/apps/api/tests/test_reporting_integration.py`
+- `HAPPY_PLATFORM_CODEX/apps/api/tests/test_worker_crash_integration.py`
+- `HAPPY_PLATFORM_CODEX/apps/web/components/reporting-workspace.tsx`
+- `HAPPY_PLATFORM_CODEX/apps/web/lib/reporting.ts`
+
+### Tests Added/Changed
+
+Reporting integration tests cover expired final failure, current live leases, audited/optimistic retry, non-owner 404 and Marketing 403. `test_worker_crash_integration.py` exercises real PostgreSQL transactions, actual interpreter termination/restart, real elapsed lease expiry, authenticated retries, duplicate rejection, real private S3 export and distinct concurrent claims. No successful scan/parser response is substituted by this crash test.
+
+### Verification
+
+- `python scripts/api.py test -q -k 'reporting or hamis or real_final_claim_process'`: **19 passed**, 291 deselected, 65.50 s pytest / 67.530 s command. Earlier successful execution: 19 passed, 74.85 s.
+- Strict mypy: **passed**, 127 source files. Targeted Ruff: **passed**. Web TypeScript and ESLint: **passed**; changed TS/TSX formatted with Prettier.
+- Evidence: [completion-evidence](completion-evidence/). Full production browser/build gate and direct exercise of the new retry form remain part of the later comprehensive verification.
+
+### Remaining Risk
+
+No hosted restart supervisor, queue alerts or monitoring delivery has been verified yet. Database outage/pool behavior is the later P1-05 task. New retry UI interaction has static checks and backend coverage but awaits browser verification. No staging or production readiness promotion is claimed at this checkpoint.
+
+### Next Task
+
+P1-01: prevent raw search values, callback codes, tokens and unhandled exception messages from entering duplicate access/error logs or exported spans; retain safe request IDs, route templates, status and timing. Verify emitted logs and actual OTLP transport with sentinels.

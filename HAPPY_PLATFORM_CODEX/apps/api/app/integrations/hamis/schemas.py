@@ -18,3 +18,8 @@ class EventReview(BaseModel):
     version: int = Field(ge=1)
     decision: Literal["REJECT"]
     reason: str = Field(min_length=1, max_length=1000)
+
+
+class EventRetry(BaseModel):
+    version: int = Field(ge=1)
+    reason: str = Field(min_length=1, max_length=1000)

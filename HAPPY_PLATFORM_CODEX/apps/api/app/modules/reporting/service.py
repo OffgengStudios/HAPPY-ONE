@@ -675,6 +675,7 @@ def export_job_view(row: ReportExportJob) -> dict[str, Any]:
             "started_at",
             "completed_at",
             "created_at",
+            "version",
         )
     }
 

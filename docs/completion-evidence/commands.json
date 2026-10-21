@@ -1,0 +1,22 @@
+[
+  {
+    "label": "01-empty-migration",
+    "exit_code": 0,
+    "seconds": 13.636
+  },
+  {
+    "label": "02-report-final-lease-before-fix",
+    "exit_code": 1,
+    "seconds": 153.958
+  },
+  {
+    "label": "03-report-and-hamis-recovery-suite",
+    "exit_code": 0,
+    "seconds": 76.946
+  },
+  {
+    "label": "04-worker-recovery-regressions",
+    "exit_code": 0,
+    "seconds": 67.53
+  }
+]

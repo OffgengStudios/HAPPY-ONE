@@ -44,8 +44,10 @@ def validate_export(values: data.ExportRequest, actor: Principal) -> None:
             )
 
 
-def owned_job(db: Database, identifier: UUID, actor: Principal) -> ReportExportJob:
-    row = db.get(ReportExportJob, identifier)
+def owned_job(
+    db: Database, identifier: UUID, actor: Principal, *, lock: bool = False
+) -> ReportExportJob:
+    row = db.get(ReportExportJob, identifier, with_for_update=lock, populate_existing=lock)
     if not row or row.archived_at or row.requested_by != actor.user.id:
         raise ApiError(404, "REPORT_EXPORT_JOB_NOT_FOUND", "Export job not found.")
     return row
@@ -228,6 +230,51 @@ def export_jobs(db: Database, actor: Export) -> dict[str, Any]:
 @router.get("/reports/export-jobs/{identifier}")
 def export_job(identifier: UUID, db: Database, actor: Export) -> dict[str, Any]:
     return s.export_job_view(owned_job(db, identifier, actor))
+
+
+@router.post("/reports/export-jobs/{identifier}/retry", status_code=202)
+def export_job_retry(
+    identifier: UUID, values: data.ExportRetry, db: Database, actor: Export, request: Request
+) -> dict[str, Any]:
+    row = owned_job(db, identifier, actor, lock=True)
+    if row.version != values.version:
+        raise ApiError(
+            409, "RECORD_VERSION_CONFLICT", "This export changed. Refresh before retrying."
+        )
+    if row.status != "FAILED":
+        raise ApiError(409, "REPORT_EXPORT_NOT_FAILED", "Only failed exports can be retried.")
+    validate_export(
+        data.ExportRequest(
+            kpi_code=row.kpi_code,
+            date_from=row.period_start,
+            date_to=row.period_end,
+            include_sensitive=row.include_sensitive,
+            privacy_acknowledged=values.privacy_acknowledged,
+        ),
+        actor,
+    )
+    row.status = "PENDING"
+    row.attempt_count = 0
+    row.error_code = None
+    row.error_message = None
+    row.next_attempt_at = None
+    row.lease_owner = None
+    row.lease_expires_at = None
+    row.started_at = None
+    row.completed_at = None
+    row.version += 1
+    row.updated_by = actor.user.id
+    audit(
+        db,
+        "report.export_retried",
+        actor.audit_actor,
+        "report_export_job",
+        row.id,
+        request,
+        changes={"reason": values.reason},
+    )
+    db.commit()
+    return s.export_job_view(row)
 
 
 @router.get("/reports/export-jobs/{identifier}/download")

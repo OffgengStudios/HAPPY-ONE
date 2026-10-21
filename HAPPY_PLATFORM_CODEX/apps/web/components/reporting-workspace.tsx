@@ -56,6 +56,7 @@ export function ReportingWorkspace({ view, user }: { view: string; user: Me }) {
   const [dateTo, setDateTo] = useState(initialTo);
   const [selected, setSelected] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [retrying, setRetrying] = useState<string | null>(null);
   const period = `date_from=${dateFrom}&date_to=${dateTo}`;
   const section = view === "work" ? "dashboard" : view;
   const dashboard = useQuery({
@@ -145,6 +146,31 @@ export function ReportingWorkspace({ view, user }: { view: string; user: Me }) {
       setMessage(
         reason instanceof Error ? reason.message : "Export request failed.",
       );
+    }
+  }
+
+  async function retryExport(
+    job: ReportExportJob,
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    const values = new FormData(event.currentTarget);
+    setRetrying(job.id);
+    setMessage("");
+    try {
+      await api(`/reports/export-jobs/${job.id}/retry`, "POST", {
+        version: job.version,
+        reason: values.get("reason"),
+        privacy_acknowledged: values.get("privacy_acknowledged") === "on",
+      });
+      await exportJobs.refetch();
+      setMessage("Export retry requested.");
+    } catch (reason) {
+      setMessage(
+        reason instanceof Error ? reason.message : "Export retry failed.",
+      );
+    } finally {
+      setRetrying(null);
     }
   }
 
@@ -373,6 +399,43 @@ export function ReportingWorkspace({ view, user }: { view: string; user: Me }) {
                       </span>
                     )}
                   </span>
+                  {job.status === "FAILED" &&
+                    user.permissions.includes("report:export") && (
+                      <form
+                        onSubmit={(event) => void retryExport(job, event)}
+                        className="flex flex-wrap items-end gap-2"
+                      >
+                        <label className="text-xs">
+                          Retry reason
+                          <input
+                            className="field block"
+                            name="reason"
+                            required
+                            maxLength={5000}
+                          />
+                        </label>
+                        {job.include_sensitive && (
+                          <label className="text-xs">
+                            <input
+                              type="checkbox"
+                              name="privacy_acknowledged"
+                              required
+                            />{" "}
+                            I acknowledge this export contains sensitive
+                            information.
+                          </label>
+                        )}
+                        <button
+                          className="secondary-button"
+                          disabled={retrying === job.id}
+                          type="submit"
+                        >
+                          {retrying === job.id
+                            ? "Requesting retry…"
+                            : "Retry export"}
+                        </button>
+                      </form>
+                    )}
                   {job.status === "SUCCEEDED" && (
                     <button
                       className="icon-button"
