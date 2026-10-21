@@ -1,0 +1,2 @@
+# Preserve the verified CSV wire bytes, including quoted control characters.
+*.csv -text -diff

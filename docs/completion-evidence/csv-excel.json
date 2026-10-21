@@ -1,0 +1,11 @@
+{
+    "general_csv_import":  true,
+    "negative_numeric_type":  "System.Double",
+    "version":  "16.0",
+    "negative_numeric_value":  -12.5,
+    "forced_text_columns":  false,
+    "unsafe_control_has_formula":  true,
+    "protected_formula_count":  0,
+    "application":  "Microsoft Excel",
+    "protected_text_cells":  10
+}

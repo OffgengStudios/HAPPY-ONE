@@ -108,3 +108,35 @@ Managed ingress access/error logs and external collector/dashboard configuration
 ### Next Task
 
 P1-02: neutralize spreadsheet formulas at the shared synchronous/background CSV boundary, preserve numeric/date values, verify actual public input through both exports, and verify spreadsheet interpretation if an application is available.
+
+## P1-02 — VERIFIED, including Microsoft Excel
+
+### Completed
+
+The shared CSV boundary prefixes dangerous text cells with an apostrophe, including formula prefixes after Unicode whitespace/BOM and control-character prefixes. Numbers/Decimal/date values retain their representation, and authoritative stored names remain unchanged. Both immediate and worker exports use the same protection.
+
+### Evidence
+
+Before the fix, eleven regressions failed (ten dangerous-prefix cases plus actual public input flowing to CSV); the existing numeric/date preservation case passed. After the fix, real public intake `first_name='=1+'`, `surname='1'` exports the literal protected cell through both paths, with private download authorization retained. Microsoft Excel 16.0 opened the exact CSV bytes using general import: a harmless unprotected arithmetic control was a formula; all ten protected cells were not formulas; `-12.50` remained a System.Double value of -12.5. Columns were not forced to text. An initial spreadsheet helper accidentally converted CRLF twice on Windows; its control correctly rejected that invalid test setup. The successful test writes the exact HTTP CSV bytes without newline conversion.
+
+### Files Changed
+
+- `HAPPY_PLATFORM_CODEX/apps/api/app/modules/reporting/service.py`
+- `HAPPY_PLATFORM_CODEX/apps/api/tests/test_csv_security.py`
+- `HAPPY_PLATFORM_CODEX/apps/api/tests/test_public_intake_integration.py`
+
+### Tests Added/Changed
+
+Eleven formula/control/Unicode-prefix cases; numeric/Decimal/date/CSV quoting preservation; public submission → synchronous CSV → actual worker/private storage CSV → authorized/anonymous download boundaries. Excel verification evidence and synthetic CSV/control inputs are in `docs/completion-evidence/`.
+
+### Verification
+
+`python scripts/api.py test -q -k 'csv_security or public_formula_input or reporting'`: **21 passed**, 305 deselected, 15.48 s pytest / 17.181 s command. Strict mypy and targeted Ruff pass. Excel automation exited 0, closed its workbooks/application, and recorded zero formulas among protected text cells.
+
+### Remaining Risk
+
+The verification covers Microsoft Excel 16.0 general CSV opening and parser-level representation checks; it does not certify every spreadsheet/import configuration. Large-export capacity is a later task. No programme values or record data were changed to hide formulas.
+
+### Next Task
+
+P1-03: explicitly classify bounded CV/MOU/JD/public multipart requests, accept valid 1 MiB staff documents below the configured maximum, and test oversized/malformed/chunked bodies without introducing an unlimited global body setting.

@@ -1,6 +1,8 @@
+import csv
 import io
 import json
 import os
+from contextlib import nullcontext
 from uuid import uuid4
 
 import pytest
@@ -140,6 +142,39 @@ def test_public_submission_uses_central_domain_without_accounts(db):
     assert client.get("/api/v1/participants").status_code == 401
     assert client.get("/api/v1/participant-intake/me").status_code == 404
     assert client.get("/api/v1/intake-operations").status_code == 401
+
+
+def test_public_formula_input_is_literal_in_synchronous_and_worker_csv(db, monkeypatch):
+    from app.modules.reporting import worker
+    from app.modules.reporting.models import ReportExportJob
+    from app.modules.supply.models import Person
+
+    public = TestClient(app, headers=ORIGIN)
+    submitted = payload()
+    submitted["basic"] = {"first_name": "=1+", "surname": "1"}
+    assert submit(public, submitted).status_code == 202
+    assert db.scalar(select(Person)).first_name == "=1+"  # Only the export representation changes.
+    staff = staff_login(db, "ADMIN")
+    request = {"kpi_code": "KPI-SUP-001", "date_from": "2026-01-01", "date_to": "2026-12-31"}
+    synchronous = staff.post("/api/v1/reports/export", json=request)
+    assert synchronous.status_code == 200
+    rows = list(csv.DictReader(io.StringIO(synchronous.text)))
+    assert rows[0]["participant"] == "'=1+ 1"
+    queued = staff.post("/api/v1/reports/export-jobs", json=request)
+    assert queued.status_code == 202
+    job = db.get(ReportExportJob, queued.json()["id"])
+    monkeypatch.setattr(worker, "get_session_factory", lambda: lambda: nullcontext(db))
+    try:
+        assert worker.run_once()
+        assert job.status == "SUCCEEDED"
+        prepared = staff.get(f"/api/v1/reports/export-jobs/{job.id}/download")
+        assert prepared.status_code == 200
+        assert list(csv.DictReader(io.StringIO(prepared.text))) == rows
+        assert public.get(f"/api/v1/reports/export-jobs/{job.id}/download").status_code == 401
+    finally:
+        if job.storage_key:
+            assert job.storage_key.startswith(f"reports/exports/{job.requested_by}/")
+            get_storage_client().delete_object(Bucket=settings.s3_bucket, Key=job.storage_key)
 
 
 def test_possible_duplicate_requires_review_without_disclosing_person(db):

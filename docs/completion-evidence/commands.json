@@ -33,5 +33,20 @@
     "label": "07-actual-server-logs-and-otlp",
     "exit_code": 0,
     "seconds": 11.292
+  },
+  {
+    "label": "08-csv-before-fix",
+    "exit_code": 1,
+    "seconds": 12.478
+  },
+  {
+    "label": "09-csv-public-and-worker-exports",
+    "exit_code": 0,
+    "seconds": 16.06
+  },
+  {
+    "label": "10-csv-unicode-and-integration",
+    "exit_code": 0,
+    "seconds": 17.181
   }
 ]

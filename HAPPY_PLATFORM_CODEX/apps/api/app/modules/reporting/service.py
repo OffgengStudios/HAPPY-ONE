@@ -1,5 +1,6 @@
 import csv
 import io
+import re
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from statistics import median
@@ -45,6 +46,7 @@ KPI_LABELS = {
     "KPI-MKT-003": "Campaign placements",
 }
 OPEN_VACANCY = ["PENDING_CONFIRMATION", "ACTIVE", "PARTIALLY_FILLED", "ON_HOLD"]
+FORMULA_PREFIX = re.compile(r"^[\s\ufeff]*[=+\-@]")
 EXPORT_FIELDS = {
     "PLACEMENT": ["id", "code", "participant", "vacancy", "employer", "confirmed_at"],
     "VACANCY": ["id", "code", "vacancy", "employer", "required", "started", "outstanding"],
@@ -647,12 +649,21 @@ def export_fields(code: str) -> list[str]:
     return EXPORT_FIELDS["DATA_QUALITY"]
 
 
+def csv_cell(value: Any) -> Any:
+    if isinstance(value, str):
+        # Prefix only textual input. Trusted numbers/Decimal/date values retain
+        # their type and representation; source records are never rewritten.
+        if value.startswith(("\t", "\r", "\n", "\ufeff")) or FORMULA_PREFIX.match(value):
+            return "'" + value
+    return value
+
+
 def csv_export(code: str, rows: list[dict[str, Any]]) -> str:
     output = io.StringIO(newline="")
     fields = export_fields(code)
     writer = csv.DictWriter(output, fieldnames=fields, extrasaction="ignore")
     writer.writeheader()
-    writer.writerows(rows)
+    writer.writerows({key: csv_cell(value) for key, value in row.items()} for row in rows)
     return output.getvalue()
 
 
