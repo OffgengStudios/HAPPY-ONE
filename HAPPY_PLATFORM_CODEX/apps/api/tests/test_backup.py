@@ -1,4 +1,8 @@
 import json
+import os
+import subprocess
+import sys
+import traceback
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -6,6 +10,81 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.db import backup
+
+
+@pytest.mark.parametrize("username", ["application", "restore_admin"])
+def test_failed_postgres_child_never_exposes_credentials(
+    username: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    secret = "SENTINEL-backup-credential-42"
+    database = backup.postgres_url(f"postgresql://{username}:{secret}@127.0.0.1/postgres")
+    execute = subprocess.run
+    calls = []
+
+    def observed(command, **kwargs):
+        calls.append((command, kwargs))
+        return execute(command, **kwargs)
+
+    monkeypatch.setattr(backup.subprocess, "run", observed)
+    previous = os.environ.get("PGPASSWORD")
+    with pytest.raises(RuntimeError, match="PostgreSQL") as failed:
+        backup.run(
+            [
+                sys.executable,
+                "-c",
+                "import os,sys; print(os.environ['PGPASSWORD']); "
+                "print(os.environ['PGPASSWORD'],file=sys.stderr); sys.exit(7)",
+            ],
+            database=database,
+        )
+    assert calls[0][1]["env"]["PGPASSWORD"] == secret
+    assert secret not in repr(calls[0][0])
+    assert secret not in "".join(traceback.format_exception(failed.value))
+    assert secret not in repr(failed.value)
+    assert os.environ.get("PGPASSWORD") == previous
+
+
+def test_successful_postgres_child_receives_password_only_in_its_environment() -> None:
+    database = backup.postgres_url("postgresql://application:sentinel-success@127.0.0.1/happy")
+    result = backup.run([sys.executable, "-c", "print('synthetic catalogue')"], database=database)
+    assert result.stdout.strip() == "synthetic catalogue"
+    assert "sentinel-success" not in repr(result.args)
+
+
+def test_postgres_command_start_failure_has_safe_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    def unavailable(*args, **kwargs):
+        raise OSError("SENTINEL-operating-system-error")
+
+    monkeypatch.setattr(backup.subprocess, "run", unavailable)
+    with pytest.raises(RuntimeError, match="PostgreSQL") as failed:
+        backup.run(["missing-pg-client"])
+    assert "SENTINEL" not in "".join(traceback.format_exception(failed.value))
+
+
+def test_postgres_url_rejects_password_query_parameters() -> None:
+    with pytest.raises(ValueError, match="password"):
+        backup.postgres_url("postgresql://application@db/happy?password=SENTINEL")
+
+
+@pytest.mark.parametrize("action", ["create", "scheduled", "restore-latest"])
+def test_backup_cli_and_scheduler_failure_output_is_sanitized(
+    action: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    secret = "SENTINEL-scheduler-database-password"
+
+    def failed(*args, **kwargs):
+        raise subprocess.CalledProcessError(1, ["pg_dump", secret], secret, secret)
+
+    monkeypatch.setattr(sys, "argv", ["backup", action])
+    for name in ("create_backup", "scheduled_backup", "restore_latest"):
+        monkeypatch.setattr(backup, name, failed)
+    monkeypatch.setattr(backup, "alert", MagicMock())
+    with pytest.raises(SystemExit) as stopped:
+        backup.main()
+    captured = capsys.readouterr()
+    assert stopped.value.code == 1
+    assert secret not in captured.out + captured.err
+    assert "Traceback" not in captured.err
 
 
 def test_postgres_url_rejects_non_postgres() -> None:

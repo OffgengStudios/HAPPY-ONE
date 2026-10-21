@@ -22,13 +22,16 @@ alert destinations and production approvers remain release inputs.
 6. Rehearse restoration against a non-production maintenance server account:
 
    ```bash
-   pnpm db:backup restore-test /secure/backup/happy-before-release.dump \
-     --admin-url "$HAPPY_RESTORE_ADMIN_URL"
+   # Supply RESTORE_ADMIN_URL through the private environment/secret manager.
+   pnpm db:backup restore-test /secure/backup/happy-before-release.dump
    ```
 
 The restore command creates only `happy_restore_test_<random>`, validates its
 migration/table evidence, and drops it in `finally`. Never supply the application
 database as the admin URL; only `postgres` or `template1` is accepted.
+Passwords are passed to PostgreSQL clients in the child process environment,
+never their command arguments. `--admin-url` is rejected; do not paste maintenance
+credentials into shell arguments. Failure output is deliberately sanitized.
 
 ## Deployment
 

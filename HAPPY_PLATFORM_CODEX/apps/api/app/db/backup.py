@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import urllib.request
 from datetime import UTC, datetime
@@ -51,6 +52,8 @@ def postgres_url(value: str) -> URL:
     url = make_url(value)
     if url.get_backend_name() != "postgresql" or not url.database:
         raise ValueError("A PostgreSQL database URL is required.")
+    if any(key.casefold() == "password" for key in url.query):
+        raise ValueError("Use the URL password component, not a password query parameter.")
     return url.set(drivername="postgresql")
 
 
@@ -63,14 +66,48 @@ def executable(name: str) -> str:
     return str(find_binary_directory() / f"{name}{suffix}")
 
 
-def run(command: list[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        command,
-        check=True,
-        capture_output=True,
-        text=True,
-        creationflags=creation_flags(),
-    )
+def run(command: list[str], *, database: URL | None = None) -> subprocess.CompletedProcess[str]:
+    environment = os.environ.copy()
+    if database is not None:
+        database = postgres_url(database.render_as_string(hide_password=False))
+        # libpq reads this child-only credential. Never render it into argv or mutate
+        # the worker's shared environment. An absent URL password must not inherit
+        # an unrelated connection's PGPASSWORD (PGPASSFILE remains supported).
+        environment.pop("PGPASSWORD", None)
+        if database.password is not None:
+            environment["PGPASSWORD"] = database.password
+        connection = URL.create(
+            database.drivername,
+            username=database.username,
+            host=database.host,
+            port=database.port,
+            database=database.database,
+            query=database.query,
+        )
+        command = [
+            *command,
+            "--dbname",
+            connection.render_as_string(hide_password=False),
+        ]
+    result = None
+    try:
+        result = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            env=environment,
+            creationflags=creation_flags(),
+        )
+    except OSError:
+        pass
+    # Driver output is untrusted and may contain credentials. Do not attach it,
+    # the command, or a chained subprocess exception to operational failures.
+    if result is None:
+        raise RuntimeError("PostgreSQL backup command could not start.")
+    if result.returncode:
+        raise RuntimeError(f"PostgreSQL backup command failed (exit {result.returncode}).")
+    return result
 
 
 def checksum(path: Path) -> str:
@@ -95,8 +132,8 @@ def create_backup(output: Path | None = None) -> Path:
             "--no-privileges",
             "--file",
             str(archive),
-            source.render_as_string(hide_password=False),
-        ]
+        ],
+        database=source,
     )
     manifest = {
         "format": "postgresql-custom",
@@ -143,10 +180,9 @@ def restore_test(archive: Path, admin_url: str) -> str:
                 "--exit-on-error",
                 "--no-owner",
                 "--no-privileges",
-                "--dbname",
-                target.render_as_string(hide_password=False),
                 str(archive.resolve()),
-            ]
+            ],
+            database=target,
         )
         engine = create_engine(target.set(drivername="postgresql+psycopg"))
         try:
@@ -235,14 +271,16 @@ def restore_latest() -> str:
     return revision
 
 
-def main() -> None:
+def execute() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "action", choices=["create", "verify", "restore-test", "scheduled", "restore-latest"]
     )
     parser.add_argument("archive", nargs="?", type=Path)
-    parser.add_argument("--admin-url", default=os.environ.get("HAPPY_RESTORE_ADMIN_URL", ""))
+    parser.add_argument("--admin-url", help=argparse.SUPPRESS)
     arguments = parser.parse_args()
+    if arguments.admin_url:
+        raise ValueError("Use RESTORE_ADMIN_URL in the environment, not --admin-url.")
     if arguments.action == "scheduled":
         try:
             result = scheduled_backup()
@@ -269,10 +307,21 @@ def main() -> None:
         manifest = verify_backup(arguments.archive)
         print(f"Backup verified: {manifest['sha256']}")
         return
-    if not arguments.admin_url:
-        parser.error("restore-test requires --admin-url or HAPPY_RESTORE_ADMIN_URL")
-    revision = restore_test(arguments.archive, arguments.admin_url)
+    admin_url = (
+        os.environ.get("HAPPY_RESTORE_ADMIN_URL") or settings.restore_admin_url.get_secret_value()
+    )
+    if not admin_url:
+        parser.error("restore-test requires RESTORE_ADMIN_URL in the private environment")
+    revision = restore_test(arguments.archive, admin_url)
     print(f"Isolated restore test passed at migration {revision}.")
+
+
+def main() -> None:
+    try:
+        execute()
+    except Exception as error:
+        print(f"Backup/restore operation failed ({type(error).__name__}).", file=sys.stderr)
+        raise SystemExit(1) from None
 
 
 if __name__ == "__main__":
