@@ -140,3 +140,37 @@ The verification covers Microsoft Excel 16.0 general CSV opening and parser-leve
 ### Next Task
 
 P1-03: explicitly classify bounded CV/MOU/JD/public multipart requests, accept valid 1 MiB staff documents below the configured maximum, and test oversized/malformed/chunked bodies without introducing an unlimited global body setting.
+
+## P1-03 — VERIFIED application request/file bounds
+
+### Completed
+
+POST upload classification now explicitly includes participant CV, staff partnership documents and staff JDs. Single-file requests permit one configured file plus 256 KiB fields and 64 KiB multipart overhead. Employer intake permits its existing maximum of five individually bounded files plus the same overhead. Ordinary writes retain 512 KiB. No request class is unlimited, Content-Length is not trusted, and shared file validation/scan/private-download rules are unchanged.
+
+### Evidence
+
+Before the fix both valid 1,049,102-byte staff PDF uploads returned 413 and both small configured-limit streamed staff-body tests exceeded the intended upload budget (four failed regressions). After the fix MOU/agreement and JD uploads succeed as SCANNING, including at the exact per-file maximum. One-byte-too-large files, unsupported files and malformed multipart fail safely; infinite streamed bodies stop before reaching application code. The older public body-limit test now sends 512 KiB to exceed the documented metadata/header allowance rather than treating multipart overhead as unlimited file space.
+
+### Files Changed
+
+- `HAPPY_PLATFORM_CODEX/apps/api/app/core/middleware.py`
+- `HAPPY_PLATFORM_CODEX/apps/api/tests/test_request_limits.py`
+- `HAPPY_PLATFORM_CODEX/apps/api/tests/test_demand_integration.py`
+- `HAPPY_PLATFORM_CODEX/apps/api/tests/test_public_intake_integration.py`
+- `HAPPY_PLATFORM_CODEX/docs/39-PRODUCTION-RUNBOOK.md`
+
+### Tests Added/Changed
+
+Five streamed-upload route classes, ordinary JSON cap, real authenticated MOU/JD uploads to private storage, exact file boundary, oversize, unsupported type, malformed multipart. Existing Demand, public intake, scanner-pending and golden integration checks were retained.
+
+### Verification
+
+`python scripts/api.py test -q -k 'demand or request_limits or public_intake'`: **66 passed**, 268 deselected, 43.53 s. Follow-up exact-boundary checks: **8 passed**, 326 deselected, 7.26 s. Ruff and strict mypy pass. Private test objects are removed during teardown; no successful malware scan is fabricated for these large-upload tests.
+
+### Remaining Risk
+
+Hosted proxy/body/concurrency limits must be aligned and verified externally. Actual scanner acceptance and representative upload load remain later tasks. The larger employer aggregate budget is explicitly bounded, and every individual document still obeys FILE_MAX_BYTES.
+
+### Next Task
+
+P1-04: reject malformed Fernet keys at startup without disclosing input secrets; verify application/worker key consistency and document secure generation, escrow and rotation expectations.

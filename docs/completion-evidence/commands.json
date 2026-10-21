@@ -48,5 +48,20 @@
     "label": "10-csv-unicode-and-integration",
     "exit_code": 0,
     "seconds": 17.181
+  },
+  {
+    "label": "11-document-limit-before-fix",
+    "exit_code": 1,
+    "seconds": 8.683
+  },
+  {
+    "label": "12-bounded-documents-and-intakes",
+    "exit_code": 0,
+    "seconds": 45.278
+  },
+  {
+    "label": "13-document-exact-boundaries",
+    "exit_code": 0,
+    "seconds": 8.717
   }
 ]

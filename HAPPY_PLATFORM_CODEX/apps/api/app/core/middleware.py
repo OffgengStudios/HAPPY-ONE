@@ -18,6 +18,11 @@ from app.core.version import RELEASE_VERSION
 REQUEST_ID_HEADER = "X-Request-ID"
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 logger = logging.getLogger("happy.access")
+SINGLE_FILE_UPLOAD = re.compile(
+    r"/api/v1/(?:participants/[^/]+/cv|partnerships/[^/]+/documents|vacancies/[^/]+/job-descriptions)"
+)
+MULTIPART_FIELDS_BYTES = 262144
+MULTIPART_OVERHEAD_BYTES = 65536
 
 
 def record_request(request: Request, request_id: str, status: int, started: float) -> None:
@@ -49,11 +54,18 @@ class RequestSizeMiddleware:
             await self.app(scope, receive, send)
             return
         path = scope["path"]
-        is_upload = (path.startswith("/api/v1/participants/") and path.endswith("/cv")) or path in {
-            "/api/v1/participant-intake",
-            "/api/v1/employer-intake",
-        }
-        limit = settings.file_max_bytes + 262144 if is_upload else 524288
+        slots = 0
+        if scope["method"] == "POST":
+            if path == "/api/v1/employer-intake":
+                slots = 5
+            elif path == "/api/v1/participant-intake" or SINGLE_FILE_UPLOAD.fullmatch(path):
+                slots = 1
+        is_upload = slots > 0
+        limit = (
+            slots * settings.file_max_bytes + MULTIPART_FIELDS_BYTES + MULTIPART_OVERHEAD_BYTES
+            if is_upload
+            else 524288
+        )
         body = bytearray()
         while True:
             message = await receive()

@@ -295,7 +295,7 @@ def test_required_policy_fields_and_request_size_are_enforced(db, monkeypatch):
     monkeypatch.setattr(settings, "file_max_bytes", 1024)
     response = public.post(
         "/api/v1/participant-intake",
-        content=b"x" * 263169,
+        content=b"x" * 524288,
         headers={"Content-Type": "application/octet-stream"},
     )
     assert response.status_code == 413
