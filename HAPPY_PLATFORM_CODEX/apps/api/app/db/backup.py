@@ -23,6 +23,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import URL, make_url
 
 from app.core.config import PROJECT_ROOT, settings
+from app.core.operational_health import persist_state
 from app.core.process import creation_flags
 from app.db.local import find_binary_directory
 from app.storage.s3 import get_storage_client
@@ -284,16 +285,20 @@ def execute() -> None:
     if arguments.action == "scheduled":
         try:
             result = scheduled_backup()
+            persist_state("BACKUP", succeeded=True)
             print(f"Provider backup uploaded: {result['key']}")
         except Exception as error:
+            persist_state("BACKUP", succeeded=False)
             alert("database_backup", "failure", {"error": type(error).__name__})
             raise
         return
     if arguments.action == "restore-latest":
         try:
             revision = restore_latest()
+            persist_state("RESTORE", succeeded=True)
             print(f"Provider restore exercise passed at migration {revision}.")
         except Exception as error:
+            persist_state("RESTORE", succeeded=False)
             alert("database_restore_exercise", "failure", {"error": type(error).__name__})
             raise
         return

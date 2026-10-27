@@ -15,13 +15,13 @@ from app.core.private_telemetry import PrivateSpanExporter, private_metric_views
 from app.core.version import RELEASE_VERSION
 
 
-def configure_observability(app: FastAPI) -> None:
+def configure_observability(app: FastAPI | None = None, *, service_name: str = "happy-api") -> None:
     endpoint = settings.otel_exporter_otlp_endpoint.rstrip("/")
     if not endpoint:
         return
     resource = Resource(
         {
-            "service.name": "happy-api",
+            "service.name": service_name,
             "service.version": RELEASE_VERSION,
             "deployment.environment.name": settings.app_env,
         }
@@ -47,10 +47,14 @@ def configure_observability(app: FastAPI) -> None:
     metrics.set_meter_provider(
         MeterProvider(resource=resource, metric_readers=[reader], views=private_metric_views())
     )
+    from app.core.operational_metrics import register
+
+    register(metrics.get_meter("happy.operations"))
     SQLAlchemyInstrumentor().instrument()
-    FastAPIInstrumentor.instrument_app(
-        app,
-        excluded_urls="/api/v1/health/live",
-        tracer_provider=tracer,
-        meter_provider=metrics.get_meter_provider(),
-    )
+    if app is not None:
+        FastAPIInstrumentor.instrument_app(
+            app,
+            excluded_urls="/api/v1/health/live",
+            tracer_provider=tracer,
+            meter_provider=metrics.get_meter_provider(),
+        )

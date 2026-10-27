@@ -303,3 +303,10 @@ def test_backup_and_restore_entrypoints_keep_sentinel_private(
     assert secret not in captured.out + captured.err + caplog.text
     assert secret not in repr(alerts.call_args_list)
     assert secret not in repr(storage.method_calls)
+
+
+@pytest.fixture(autouse=True)
+def isolate_operational_checkpoint_side_effects(monkeypatch):
+    # This suite tests backup credentials/CLI behavior; durable checkpoint
+    # semantics are covered against PostgreSQL in operational-health tests.
+    monkeypatch.setattr(backup, "persist_state", MagicMock())

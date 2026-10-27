@@ -1,3 +1,4 @@
+import time
 from typing import Any
 
 from email_validator import EmailNotValidError, validate_email
@@ -6,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.errors import ApiError
+from app.core.reliability_metrics import parser_attempts, parser_duration
 from app.integrations.cv_parser.adapter import CvParser, ParserUnavailable
 from app.modules.cv_parser.models import ParserJob, ParserResult, ParserReview
 from app.modules.cv_parser.schemas import ReviewInput
@@ -134,6 +136,7 @@ def process_job(
     participant: Participant,
     parser: CvParser,
 ) -> ParserJob:
+    started = time.monotonic()
     try:
         output = parser.parse(
             verified_bytes(document), document.mime_type, document.original_filename
@@ -207,6 +210,8 @@ def process_job(
     job.next_attempt_at = None
     db.commit()
     db.refresh(job)
+    parser_attempts.add(1, {"status": job.status})
+    parser_duration.record(time.monotonic() - started, {"status": job.status})
     return job
 
 
