@@ -58,3 +58,7 @@ Automatic production deployment remains disabled. No branch was merged. Local te
 ## Phase 8 preflight result
 
 pnpm release:preflight returned configuration_ready=false and exit 1 against the unprovisioned local configuration. Missing production environment/safety checks, HTTPS storage/alert/OTLP endpoints and exact CORS origins, approved privacy notice/version/onboarding policy, private scanner/parser endpoint and adequate parser token remain reported. No secret values were printed. This is an unresolved environment gate, not a successful production preflight.
+
+## Recovery schedule alignment
+
+The owner-selected one-hour RPO conflicts with the existing daily production backup schedule. Updated only the reviewed manifest to half-hourly backups, leaving execution margin. No cloud job was deployed or billed. Provider retention, duration, failed-run handling and backup age must still be measured; this configuration is not proof of compliance. Full recovery remains subject to the selected two-hour RTO.

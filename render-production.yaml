@@ -199,7 +199,9 @@ services:
     branch: main
     dockerContext: HAPPY_PLATFORM_CODEX
     dockerfilePath: HAPPY_PLATFORM_CODEX/infra/deployment/api.Dockerfile
-    schedule: 0 2 * * *
+    # Owner-selected RPO: one hour. Half-hourly snapshots leave execution margin;
+    # provider backup age and full recovery still require measured acceptance.
+    schedule: "*/30 * * * *"
     dockerCommand: python -m app.db.backup scheduled
     envVars:
       - key: APP_ENV

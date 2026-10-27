@@ -56,7 +56,7 @@ For each row record: exact revision, fault start, fault mechanism, generated ale
 | Working-day recovery | 4 hours | 4 hours | More frequent backups plus measured storage/key recovery |
 | Short interruption | 1 hour | 2 hours | Provider point-in-time recovery or sufficiently frequent snapshots and faster rehearsed restoration |
 
-The owner selected RPO = 1 hour and RTO = 2 hours on 2026-10-27. Treat these as the required design targets. Provider compliance is NOT VERIFIED: measure successful backup age and complete DB/object/key recovery before claiming compliance. A daily dump alone does not meet the selected RPO. Configure point-in-time recovery or a measured backup strategy with a worst-case loss of at most one hour, including failed-run detection and recovery.
+The owner selected RPO = 1 hour and RTO = 2 hours on 2026-10-27. Treat these as the required design targets. Provider compliance is NOT VERIFIED: measure successful backup age and complete DB/object/key recovery before claiming compliance. A daily dump alone does not meet the selected RPO. The production manifest now schedules a backup every 30 minutes instead of daily, leaving execution margin. This alone does not prove a one-hour RPO: validate run duration, provider delivery and failed-run detection, and use provider point-in-time recovery if the measured strategy cannot meet the target. Suggested initial backup-age warning: 45 minutes; breach: 60 minutes. Staging needs its own isolated scheduled backup and timed rehearsal.
 
 ## Provider recovery rehearsal
 
