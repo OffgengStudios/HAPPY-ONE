@@ -42,14 +42,23 @@ def main() -> int:
         ("Backend lint", [sys.executable, "scripts/api.py", "lint"]),
         ("Backend types", [sys.executable, "scripts/api.py", "type-check"]),
         ("Database migration", [sys.executable, "scripts/api.py", "migrate"]),
-        ("Migration model drift", [sys.executable, "scripts/api.py", "migration-check"]),
-        ("Backend unit and live integration tests", [sys.executable, "scripts/api.py", "test"]),
+        (
+            "Migration model drift",
+            [sys.executable, "scripts/api.py", "migration-check"],
+        ),
+        (
+            "Backend unit and live integration tests",
+            [sys.executable, "scripts/api.py", "test"],
+        ),
         ("JavaScript formatting", [package_manager, "format:check"]),
         ("Frontend lint", [package_manager, "lint"]),
         ("Workspace types", [package_manager, "type-check"]),
         ("Environment tests", [package_manager, "--filter", "@happy/config", "test"]),
         ("Web production build", [package_manager, "--filter", "web", "build"]),
-        ("Desktop and mobile browser tests", [package_manager, "--filter", "web", "test"]),
+        (
+            "Desktop and mobile browser tests",
+            [package_manager, "--filter", "web", "test"],
+        ),
         ("Python dependency consistency", [PYTHON, "-m", "pip", "check"]),
         (
             "Python dependency audit",
@@ -91,7 +100,13 @@ def main() -> int:
                 environment["API_INTERNAL_URL"] = fixture["api_url"]
                 environment["HAPPY_E2E_PASSWORD"] = fixture["password"]
             print(f"\n{label}", flush=True)
-            result = subprocess.run(command, cwd=ROOT, env=environment, check=False)
+            step_environment = environment.copy()
+            # Retain adapter regressions without enabling legacy routes in the
+            # default application or deployed environments.
+            step_environment["ENABLE_LEGACY_INTEGRATIONS"] = (
+                "true" if label == "Backend unit and live integration tests" else "false"
+            )
+            result = subprocess.run(command, cwd=ROOT, env=step_environment, check=False)
             if result.returncode:
                 print(f"FAILED: {label}", file=sys.stderr)
                 return result.returncode

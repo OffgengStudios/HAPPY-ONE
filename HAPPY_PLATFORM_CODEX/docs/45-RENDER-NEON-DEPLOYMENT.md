@@ -32,7 +32,11 @@ are not yet provisioned.
 
 ## Blueprint Secrets
 
-Create the Blueprint from root `render.yaml`. Render prompts for every value marked
+The platform-only Blueprint is `HAPPY_PLATFORM_CODEX/render.yaml`, relative to the
+repository root. The complete ecosystem launch candidate and release sequence are
+in [`../../render-production.yaml`](../../render-production.yaml) and
+[`../../docs/PRODUCTION-LAUNCH.md`](../../docs/PRODUCTION-LAUNCH.md).
+Render prompts for every value marked
 `sync: false`. At minimum supply:
 
 - `DATABASE_URL`: Neon connection string using `postgresql+psycopg://` and TLS.
@@ -44,8 +48,11 @@ Create the Blueprint from root `render.yaml`. Render prompts for every value mar
   real approved transport.
 - HAMIS and Employer Portal tokens only when their deployed producers are ready.
 
-The Blueprint generates the identity encryption and lookup keys once. Back these
-values up in the approved secret manager before writing encrypted identity data.
+Supply `IDENTITY_ENCRYPTION_KEY` as a valid Fernet key generated with
+`cryptography.fernet.Fernet.generate_key()`. Render's generic generated secret
+format must not be assumed to be a valid Fernet key. Supply an independent lookup
+key of at least 32 characters (the platform-only Blueprint can generate this key).
+Back these values up in the approved secret manager before writing encrypted identity data.
 Rotating either key requires the controlled process in the production runbook.
 
 ## First Release

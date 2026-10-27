@@ -9,7 +9,7 @@ services:
   - name: happy-one-staging-parser
     type: pserv
     runtime: docker
-    branch: integration/happy-ecosystem
+    branch: feature/unijay-production-consolidation
     dockerContext: CV-Parser-main/cv_system_output
     dockerfilePath: CV-Parser-main/cv_system_output/Dockerfile.happy
     envVars:
@@ -20,13 +20,15 @@ services:
   - name: happy-one-staging-api
     type: web
     runtime: docker
-    branch: integration/happy-ecosystem
+    branch: feature/unijay-production-consolidation
     dockerContext: HAPPY_PLATFORM_CODEX
     dockerfilePath: HAPPY_PLATFORM_CODEX/infra/deployment/api.Dockerfile
     preDeployCommand: alembic upgrade head
     healthCheckPath: /api/v1/health/ready
     autoDeployTrigger: checksPass
     envVars:
+      - key: ENABLE_LEGACY_INTEGRATIONS
+        value: "false"
       - key: APP_ENV
         value: staging
       - key: S3_ENDPOINT_URL
@@ -48,8 +50,6 @@ services:
       - key: SUPPLY_PRIVACY_NOTICE_VERSION
         sync: false
       - key: SUPPLY_PRIVACY_NOTICE_TEXT
-        sync: false
-      - key: EMPLOYER_INTAKE_NOTICE_TEXT
         sync: false
       - key: SUPPLY_ONBOARDING_POLICY_APPROVED
         sync: false
@@ -79,7 +79,7 @@ services:
   - name: happy-one-staging-worker
     type: worker
     runtime: docker
-    branch: integration/happy-ecosystem
+    branch: feature/unijay-production-consolidation
     dockerContext: HAPPY_PLATFORM_CODEX
     dockerfilePath: HAPPY_PLATFORM_CODEX/infra/deployment/api.Dockerfile
     dockerCommand: python -m app.workers.operations
@@ -155,7 +155,7 @@ services:
   - name: happy-one-staging-staff
     type: web
     runtime: docker
-    branch: integration/happy-ecosystem
+    branch: feature/unijay-production-consolidation
     dockerContext: HAPPY_PLATFORM_CODEX
     dockerfilePath: HAPPY_PLATFORM_CODEX/infra/deployment/web.Dockerfile
     autoDeployTrigger: checksPass
@@ -163,34 +163,6 @@ services:
       - key: NEXT_PUBLIC_APP_ENV
         value: staging
       - key: API_INTERNAL_URL
-        fromService:
-          name: happy-one-staging-api
-          type: web
-          envVarKey: RENDER_EXTERNAL_URL
-
-  - name: happy-one-staging-hamis
-    type: web
-    runtime: static
-    branch: integration/happy-ecosystem
-    buildCommand: node scripts/build-intake.mjs hamis
-    staticPublishPath: frontend/dist
-    autoDeployTrigger: checksPass
-    envVars:
-      - key: HAPPY_API_BASE_URL
-        fromService:
-          name: happy-one-staging-api
-          type: web
-          envVarKey: RENDER_EXTERNAL_URL
-
-  - name: happy-one-staging-employer
-    type: web
-    runtime: static
-    branch: integration/happy-ecosystem
-    buildCommand: node scripts/build-intake.mjs employer
-    staticPublishPath: portal/dist
-    autoDeployTrigger: checksPass
-    envVars:
-      - key: HAPPY_API_BASE_URL
         fromService:
           name: happy-one-staging-api
           type: web

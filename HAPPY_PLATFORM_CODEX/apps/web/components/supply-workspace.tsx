@@ -966,7 +966,7 @@ function ParticipantDetail({
                               "directions",
                             ]
                           : tab === "Training"
-                            ? ["training_summary"]
+                            ? ["training_summary", "training_interests"]
                             : [
                                 "source_system",
                                 "created_via",

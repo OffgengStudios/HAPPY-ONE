@@ -10,6 +10,8 @@ PYTHON = str(VENV_PYTHON) if VENV_PYTHON.exists() else sys.executable
 API = ROOT / "apps" / "api"
 TEST_DIRECTORY = ROOT / ".local" / "pytest" / uuid4().hex
 COMMANDS = {
+    "local-production": (ROOT, [str(ROOT / "scripts" / "local_production.py")]),
+    "preflight": (ROOT, [str(ROOT / "scripts" / "preflight.py")]),
     "dev": (API, ["-m", "uvicorn", "app.main:app", "--reload", "--no-access-log"]),
     "lint": (
         ROOT,

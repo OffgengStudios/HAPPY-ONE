@@ -48,3 +48,6 @@ python ../scripts/verify-intake.py
 Use `PLAYWRIGHT_CHANNEL=msedge` where Chromium is not installed on Windows, or
 install the project Playwright Chromium as in CI. Both browser harnesses create
 isolated synthetic PostgreSQL schemas and clean their private documents.
+If a local preview already uses port 8765, set `HAPPY_INTAKE_TEST_PORT` to an unused
+port before running `verify-intake.py`; the harness uses the same port for its
+server, browser origin and isolated API CORS settings.

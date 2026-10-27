@@ -1,10 +1,18 @@
 # HAPPY Management Platform
 
 Greenfield implementation of the HAPPY Management Platform.
+Run an optimized local build with `pnpm local:production build` followed by
+`pnpm local:production start`. See the
+[local startup guide](../docs/LOCAL-PRODUCTION.md) for environment selection,
+addresses and lifecycle commands.
 
 Current release: **`1.0.0-rc.1`**. The product uses Semantic Versioning while the
 backward-compatible HTTP contract remains under **`/api/v1`**. See the
 [versioning and release policy](docs/47-VERSIONING-AND-RELEASES.md).
+The [production launch package](../docs/PRODUCTION-LAUNCH.md) contains the complete
+ecosystem deployment candidate, configuration inventory and release gates. Use
+`pnpm release:preflight` with the intended production environment to check required
+configuration without printing credentials or changing provider resources.
 
 Current evidence-based status and release blockers are recorded in the
 [Operations Platform readiness audit](docs/48-OPERATIONS-READINESS-AUDIT.md).

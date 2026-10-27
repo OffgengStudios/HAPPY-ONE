@@ -7,7 +7,11 @@ from app.modules.reporting.worker import run_once as run_report_once
 
 
 def run_once() -> bool:
-    return run_report_once() or run_parser_once() or run_hamis_once()
+    return (
+        run_report_once()
+        or run_parser_once()
+        or (settings.enable_legacy_integrations and run_hamis_once())
+    )
 
 
 def main() -> None:

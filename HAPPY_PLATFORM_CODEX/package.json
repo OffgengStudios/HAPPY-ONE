@@ -11,6 +11,8 @@
     "lint": "pnpm --recursive run lint",
     "test": "pnpm --recursive run test",
     "verify": "python scripts/ci.py",
+    "release:preflight": "python scripts/api.py preflight",
+    "local:production": "python scripts/api.py local-production",
     "format:check": "prettier --check apps/web packages package.json pnpm-workspace.yaml docker-compose.yml infra ../.github/workflows",
     "storage:install": "python scripts/install_storage.py",
     "storage:local": "python scripts/api.py storage-local start",

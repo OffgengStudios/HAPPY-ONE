@@ -106,6 +106,7 @@ class Participant(Record, Base):
     next_action_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_sections: Mapped[list[str]] = mapped_column(JSON, default=list)
     training_summary: Mapped[str | None] = mapped_column(Text)
+    training_interests: Mapped[list[str]] = mapped_column(JSON, default=list, server_default="[]")
     completion_mode: Mapped[str | None] = mapped_column(String(30))
     assisted_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

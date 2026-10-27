@@ -461,7 +461,12 @@ def start() -> None:
             **os.environ,
             "DATABASE_URL": url,
             "APP_ENV": "test",
-            "API_CORS_ORIGINS": json.dumps(["http://127.0.0.1:3100", "http://127.0.0.1:8765"]),
+            "API_CORS_ORIGINS": json.dumps(
+                [
+                    "http://127.0.0.1:3100",
+                    f"http://127.0.0.1:{int(os.environ.get('HAPPY_INTAKE_TEST_PORT', '8765'))}",
+                ]
+            ),
             "AUTH_IP_LIMIT": "100",
             "SUPPLY_ONBOARDING_POLICY_APPROVED": "true",
             "SUPPLY_PRIVACY_NOTICE_VERSION": "SYNTHETIC-E2E-NOTICE",

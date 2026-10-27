@@ -70,6 +70,7 @@ PART_PUBLIC = (
     "next_action",
     "next_action_due_at",
     "training_summary",
+    "training_interests",
     "completion_mode",
     "assisted_by",
     "completed_at",
@@ -469,6 +470,8 @@ def section_write(
             setattr(row, key, value)
     elif section == "training":
         row.training_summary = values["training_summary"]
+        if values.get("training_interests") is not None:
+            row.training_interests = values["training_interests"]
     completed = set(row.completed_sections)
     if section != "review":
         completed.discard("review")
@@ -661,6 +664,8 @@ def save_identity(
     data: s.IdentityWrite,
     principal: AuthorizationContext,
     request: Request,
+    *,
+    commit: bool = True,
 ) -> None:
     raw = data.government_id.get_secret_value()
     fingerprint = identity_hash(data.government_id_type, raw)
@@ -695,4 +700,5 @@ def save_identity(
         request,
         "participant.updated",
         {"section": "identity", "fields": ["government_id"]},
+        commit=commit,
     )

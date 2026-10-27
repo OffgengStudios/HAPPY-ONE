@@ -8,7 +8,17 @@ loadProjectEnvironment(projectRoot, appDirectory);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  distDir:
+    process.env.HAPPY_LOCAL_PRODUCTION === "1"
+      ? ".next-local-production"
+      : ".next",
   typedRoutes: true,
+  typescript: {
+    tsconfigPath:
+      process.env.HAPPY_LOCAL_PRODUCTION === "1"
+        ? "tsconfig.local-production.json"
+        : "tsconfig.json",
+  },
   devIndicators: false,
   output: process.platform === "win32" ? undefined : "standalone",
   outputFileTracingRoot: projectRoot,

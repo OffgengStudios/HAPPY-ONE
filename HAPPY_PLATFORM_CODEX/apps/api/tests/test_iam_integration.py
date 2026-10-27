@@ -281,7 +281,10 @@ def test_session_revocation_cannot_target_other_user(db: Session) -> None:
     assert other.get("/api/v1/auth/me").status_code == 200
 
 
-def test_mfa_challenge_fails_closed_and_is_consumed(db: Session) -> None:
+def test_mfa_challenge_fails_closed_and_is_consumed(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "identity_encryption_key", SecretStr(""))
     user = account(db)
     user.mfa_enabled = True
     db.commit()

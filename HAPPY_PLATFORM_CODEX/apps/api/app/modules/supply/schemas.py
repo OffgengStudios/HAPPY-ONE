@@ -184,8 +184,16 @@ class EmploymentWrite(Version):
     work_community: Short | None = None
 
 
+TrainingInterest = Literal["CAREER_READINESS", "SOFT_SKILLS"]
+TRAINING_INTEREST_LABELS = {
+    "CAREER_READINESS": "Career Readiness",
+    "SOFT_SKILLS": "Soft skills",
+}
+
+
 class TrainingWrite(Version):
     training_summary: Text | None = None
+    training_interests: list[TrainingInterest] | None = Field(default=None, max_length=2)
 
 
 class ReviewWrite(Version):

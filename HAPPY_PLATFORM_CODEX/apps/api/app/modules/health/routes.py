@@ -38,11 +38,11 @@ def liveness(request: Request) -> HealthResponse:
 def readiness(request: Request) -> HealthResponse:
     try:
         check_database()
-    except Exception as exc:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database readiness check failed",
-        ) from exc
+        ) from None
 
     try:
         check_object_storage()

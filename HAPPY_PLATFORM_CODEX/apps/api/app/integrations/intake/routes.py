@@ -16,10 +16,12 @@ from app.integrations.intake.schemas import (
     IntakeReview,
     ParticipantSubmission,
 )
+from app.integrations.intake.sources import PARTICIPANT_SOURCE, PARTICIPANT_SOURCES
 from app.modules.iam.dependencies import Database, Principal, require
 from app.modules.iam.service import audit
 
 router = APIRouter(tags=["public-intake"])
+employer_router = APIRouter(tags=["legacy-employer-intake"])
 Read = Annotated[Principal, Depends(require("integration_event:view"))]
 Manage = Annotated[Principal, Depends(require("integration_event:manage"))]
 
@@ -30,7 +32,11 @@ def protected(request: Request, db: Database) -> None:
 
 @router.get("/participant-intake/config")
 def configuration() -> dict[str, Any]:
+    from app.modules.supply.schemas import TRAINING_INTEREST_LABELS
+
     return {
+        "source_system": PARTICIPANT_SOURCE,
+        "training_interests": TRAINING_INTEREST_LABELS,
         "privacy_notice_version": settings.supply_privacy_notice_version,
         "privacy_notice": settings.supply_privacy_notice_text,
         "accepting_submissions": bool(
@@ -70,7 +76,7 @@ def submit_participant(
     keys: list[str] = []
     try:
         row, replay = service.receipt(
-            db, "HAMIS", data.submission_id, data.model_dump(mode="json"), uploads
+            db, PARTICIPANT_SOURCE, data.submission_id, service.submitted_payload(data), uploads
         )
         if replay:
             return service.public_receipt(row)
@@ -84,7 +90,7 @@ def submit_participant(
         raise
 
 
-@router.get("/employer-intake/config")
+@employer_router.get("/employer-intake/config")
 def employer_configuration() -> dict[str, Any]:
     return {
         "notice": settings.employer_intake_notice_text,
@@ -93,7 +99,7 @@ def employer_configuration() -> dict[str, Any]:
     }
 
 
-@router.post("/employer-intake", status_code=202, dependencies=[Depends(protected)])
+@employer_router.post("/employer-intake", status_code=202, dependencies=[Depends(protected)])
 def submit_employer(
     request: Request,
     db: Database,
@@ -201,7 +207,7 @@ def intake_detail(identifier: UUID, db: Database, actor: Read, request: Request)
     import json
 
     if (
-        row.source == "HAMIS"
+        row.source in PARTICIPANT_SOURCES
         and not {"participant:view", "participant_sensitive:view"} <= actor.permissions
     ):
         raise ApiError(
@@ -219,6 +225,13 @@ def intake_detail(identifier: UUID, db: Database, actor: Read, request: Request)
         raise ApiError(
             503, "INTAKE_EVIDENCE_UNAVAILABLE", "Protected submission evidence is unavailable."
         ) from None
+    if isinstance(payload.get("identity"), dict):
+        # Identity values stay non-readable just as in the protected domain API.
+        identity = payload["identity"]
+        payload["identity"] = {
+            "government_id_type": identity.get("government_id_type"),
+            "has_government_id": bool(identity.get("government_id")),
+        }
     return {
         "id": str(row.id),
         "source": row.source,
@@ -262,7 +275,7 @@ def resolve_duplicate(
     if not {"participant:view", "participant:edit"} <= actor.permissions:
         raise ApiError(403, "PERMISSION_DENIED", "You do not have permission for this action.")
     row = db.scalar(select(PublicIntake).where(PublicIntake.id == identifier).with_for_update())
-    if row is None or row.source != "HAMIS" or row.status != "NEEDS_REVIEW":
+    if row is None or row.source not in PARTICIPANT_SOURCES or row.status != "NEEDS_REVIEW":
         raise ApiError(
             409, "INTAKE_NOT_REVIEWABLE", "This participant submission is not awaiting review."
         )
@@ -275,7 +288,7 @@ def resolve_duplicate(
         ExternalReference(
             entity_type="PARTICIPANT",
             entity_id=participant.id,
-            external_system="HAMIS",
+            external_system=row.source,
             external_id=str(row.submission_id),
         )
     )

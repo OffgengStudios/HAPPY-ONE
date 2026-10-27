@@ -78,8 +78,15 @@ def db(engine, monkeypatch):
     try:
         yield session
     finally:
-        for row in session.scalars(select(IntakeDocument)):
-            get_storage_client().delete_object(Bucket=settings.s3_bucket, Key=row.storage_key)
+        from app.modules.demand.models import JobDescriptionVersion, PartnershipDocument
+
+        keys = {
+            row.storage_key
+            for model in (IntakeDocument, Document, PartnershipDocument, JobDescriptionVersion)
+            for row in session.scalars(select(model))
+        }
+        for key in keys:
+            get_storage_client().delete_object(Bucket=settings.s3_bucket, Key=key)
         app.dependency_overrides.clear()
         session.close()
         transaction.rollback()
@@ -120,16 +127,16 @@ def test_public_submission_uses_central_domain_without_accounts(db):
     assert set(response.json()) == {"receipt_id", "status"}
     assert not client.cookies
     row = db.scalar(select(Participant))
-    assert row and row.source_system == "HAMIS" and row.created_via == "PARTICIPANT"
+    assert row and row.source_system == "UNIJAY_FASHION" and row.created_via == "PARTICIPANT"
     assert row.created_by is None and row.onboarding_status == "COMPLETE"
     assert db.scalar(select(func.count()).select_from(User)) == 0
     grant = db.scalar(select(Consent))
     assert grant.status == "ACTIVE" and grant.method == "DIGITAL"
-    assert grant.source_system == "HAMIS" and grant.created_via == "PARTICIPANT"
+    assert grant.source_system == "UNIJAY_FASHION" and grant.created_via == "PARTICIPANT"
     assert grant.created_by is None
     for model in (Education, Experience, Skill, SensitiveProfile):
         detail = db.scalar(select(model).where(model.participant_id == row.id))
-        assert detail.source_system == "HAMIS" and detail.created_via == "PARTICIPANT"
+        assert detail.source_system == "UNIJAY_FASHION" and detail.created_via == "PARTICIPANT"
         assert detail.created_by is None
     assert db.scalar(
         select(AuditEvent).where(AuditEvent.event_code == "participant_intake.submitted")
@@ -284,14 +291,18 @@ def test_intake_operations_are_staff_only_and_duplicate_link_preserves_profile(d
     assert first.status_code == 202
 
 
-def test_required_policy_fields_and_request_size_are_enforced(db, monkeypatch):
+def test_incomplete_registration_preserves_onboarding_gate_and_request_size(db, monkeypatch):
     monkeypatch.setattr(settings, "supply_required_fields", ["date_of_birth"])
     public = TestClient(app, headers=ORIGIN)
     response = submit(public, payload())
-    assert (
-        response.status_code == 422 and response.json()["error"]["code"] == "ONBOARDING_INCOMPLETE"
-    )
-    assert db.scalar(select(func.count()).select_from(Participant)) == 0
+    assert response.status_code == 202
+    participant = db.scalar(select(Participant))
+    assert participant.onboarding_status == "IN_PROGRESS"
+    assert participant.readiness_status == "NOT_ASSESSED"
+    staff = staff_login(db, "ADMIN")
+    detail = staff.get(f"/api/v1/participants/{participant.id}").json()
+    assert "date_of_birth" in detail["missing_fields"]
+    assert not detail["submission_eligible"]
     monkeypatch.setattr(settings, "file_max_bytes", 1024)
     response = public.post(
         "/api/v1/participant-intake",
@@ -557,7 +568,7 @@ def test_employer_duplicates_by_contact_require_explicit_existing_selection(db):
     assert db.scalar(select(func.count()).select_from(Organization)) == 1
 
 
-def test_integrated_golden_workflow_uses_public_intakes_and_real_parser(db, monkeypatch):
+def test_unijay_internal_demand_golden_workflow_uses_real_parser(db, monkeypatch):
     import socket
     import subprocess
     import sys
@@ -567,7 +578,6 @@ def test_integrated_golden_workflow_uses_public_intakes_and_real_parser(db, monk
 
     from app.core.process import creation_flags
     from app.integrations.cv_parser.adapter import HttpCvParser
-    from app.integrations.employer_portal.models import EmployerSubmission
     from app.modules.cv_parser import service as parsing
     from app.modules.cv_parser.models import ParserResult
     from app.modules.demand.models import Vacancy
@@ -582,16 +592,55 @@ def test_integrated_golden_workflow_uses_public_intakes_and_real_parser(db, monk
         assert response.status_code in {200, 201}, response.text
         return response.json()
 
-    assert (
-        public.post(
-            "/api/v1/employer-intake", data={"payload": json.dumps(employer_payload())}
-        ).status_code
-        == 202
+    employer = post(
+        "/organizations",
+        {
+            "name": "Synthetic Internal Employer",
+            "organization_type": "EMPLOYER",
+            "mou_required": False,
+        },
     )
-    inbox = db.scalar(select(EmployerSubmission))
     post(
-        f"/integrations/employer-portal/submissions/{inbox.id}/convert",
-        {"version": inbox.version, "reason": "Synthetic Demand review"},
+        f"/organizations/{employer['id']}/contacts",
+        {
+            "full_name": "Synthetic Contact",
+            "phone_raw": "0201234567",
+            "email": "synthetic-employer@example.org",
+            "is_primary": True,
+        },
+    )
+    post(
+        f"/organizations/{employer['id']}/partnership",
+        {
+            "partnership_type": "COMBINED",
+            "mou_required": False,
+        },
+    )
+    opportunity = post(
+        "/vacancies",
+        {
+            "organization_id": employer["id"],
+            "title": "Synthetic Operations Assistant",
+            "required_headcount": 3,
+            "salary_min": "1500.00",
+            "salary_max": "2000.00",
+            "salary_frequency": "MONTHLY",
+            "location_community": "Synthetic Community",
+            "work_days_text": "Monday to Friday",
+            "work_hours_text": "08:00-17:00",
+        },
+    )
+    post(
+        f"/vacancies/{opportunity['id']}/requirements",
+        {
+            "version": opportunity["version"],
+            "criterion_type": "SKILL",
+            "criterion_key": "Excel",
+            "operator": "EQ",
+            "value_json": True,
+            "display_order": 0,
+            "reason": "Synthetic requirement",
+        },
     )
     vacancy = db.scalar(select(Vacancy))
     for target in ("PENDING_CONFIRMATION", "ACTIVE"):
@@ -624,15 +673,34 @@ def test_integrated_golden_workflow_uses_public_intakes_and_real_parser(db, monk
     page[NameObject("/Contents")] = writer._add_object(stream)
     target = io.BytesIO()
     writer.write(target)
-    submitted = submit(
-        public, payload(), files={"cv": ("synthetic.pdf", target.getvalue(), "application/pdf")}
+    data = payload()
+    data["demographics"] = {"date_of_birth": "1990-01-02"}
+    data["identity"] = {"government_id": "GHA-123456789-0"}
+    data["training_interests"] = ["CAREER_READINESS"]
+    monkeypatch.setattr(
+        settings, "identity_lookup_key", SecretStr("synthetic-golden-lookup-key-over-32-characters")
     )
+    submitted = submit(public, data)
     assert submitted.status_code == 202, submitted.text
     participant = db.scalar(select(Participant))
     person = db.get(Person, participant.person_id)
     assert person.email is None
-    job = db.scalar(select(ParserJob))
+    uploaded = staff.post(
+        f"/api/v1/participants/{participant.id}/cv",
+        data={"version": participant.version},
+        files={"file": ("synthetic.pdf", target.getvalue(), "application/pdf")},
+    )
+    assert uploaded.status_code == 201, uploaded.text
     document = db.scalar(select(Document))
+    assert (
+        document.scan_status == "AVAILABLE" and files.verified_bytes(document) == target.getvalue()
+    )
+    assert public.get(f"/api/v1/files/{document.id}/download").status_code == 401
+    job_response = post(f"/cv/{document.id}/parse", {})
+    job = db.get(ParserJob, job_response["id"])
+    assert db.scalar(select(func.count()).select_from(Skill)) == 0
+    before = post(f"/vacancies/{vacancy.id}/match-suggestions", {})
+    assert before["items"][0]["match_strength"] == 0
 
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
@@ -679,14 +747,22 @@ def test_integrated_golden_workflow_uses_public_intakes_and_real_parser(db, monk
     assert person.email is None  # Suggestions have no authority before staff review.
     result = db.scalar(select(ParserResult))
     decisions = [
-        {"field": item["field"], "decision": "APPROVE" if item["field"] == "email" else "REJECT"}
+        {"field": item["field"], "decision": "APPROVE" if item["field"] == "skills" else "REJECT"}
         for item in result.suggestions_json
     ]
     post(
         f"/cv-parser/results/{result.id}/review",
         {"participant_version": participant.version, "decisions": decisions},
     )
-    assert person.email == "parsed-synthetic@example.org"
+    assert person.email is None
+    assert db.scalar(select(Skill).where(Skill.participant_id == participant.id))
+    suggestions = post(f"/vacancies/{vacancy.id}/match-suggestions", {})
+    assert suggestions["advisory_only"]
+    assert suggestions["items"][0]["match_strength"] == 100
+    assert "Matches Excel." in suggestions["items"][0]["positive_reasons"]
+    from app.modules.matching.models import CandidateVacancy
+
+    assert db.scalar(select(func.count()).select_from(CandidateVacancy)) == 0
     post(f"/cv/{document.id}/approve", {"version": participant.version})
     post(
         f"/participants/{participant.id}/readiness",
@@ -813,8 +889,122 @@ def test_integrated_golden_workflow_uses_public_intakes_and_real_parser(db, monk
     events = {item.event_code for item in db.scalars(select(AuditEvent))}
     assert {
         "participant_intake.submitted",
-        "employer_intake.submitted",
+        "organization.created",
         "cv_parser.succeeded",
         "placement.first_income_confirmed",
         "outcome.created",
     } <= events
+
+
+def test_unijay_collector_to_supply_identity_consent_interests_and_duplicate_review(
+    db, monkeypatch, caplog
+):
+    import subprocess
+    from datetime import date
+    from pathlib import Path
+
+    from app.integrations.intake.service import cipher
+    from app.modules.supply import service as supply
+    from app.modules.supply.models import Person
+
+    repository = Path(
+        os.environ.get(
+            "UNIJAY_REPOSITORY",
+            str(Path(__file__).resolve().parents[4].parent / "UNIJAY-FASHION-DATA-COLLECTION"),
+        )
+    )
+    contract = repository / "data-collection-tool" / "intake-contract.js"
+    assert contract.is_file(), "UNIJAY_REPOSITORY must identify the separate collector checkout"
+    data = json.loads(
+        subprocess.check_output(
+            [
+                "node",
+                "-e",
+                "const c=require(process.argv[1]);"
+                "process.stdout.write(JSON.stringify(c.buildPayload({"
+                "firstName:'Synthetic', otherNames:'Contract', surname:'Unijay',"
+                "phone:'0241234567',"
+                "dateOfBirth:'1990-01-02', ghanaCard:'GHA-123456789-0',"
+                "location:'Synthetic Community',"
+                "topicOfInterest:['CAREER_READINESS','SOFT_SKILLS']},"
+                "'SYNTHETIC-1',process.argv[2])))",
+                str(contract),
+                str(uuid4()),
+            ],
+            text=True,
+        )
+    )
+    monkeypatch.setattr(
+        settings, "identity_lookup_key", SecretStr("synthetic-unijay-lookup-key-over-32-characters")
+    )
+    public = TestClient(app, headers=ORIGIN)
+    config = public.get("/api/v1/participant-intake/config").json()
+    assert config["source_system"] == "UNIJAY_FASHION" and config["accepting_submissions"]
+    result = submit(public, data)
+    assert result.status_code == 202, result.text
+    assert set(result.json()) == {"receipt_id", "status"} and not public.cookies
+    participant = db.scalar(select(Participant))
+    person = db.get(Person, participant.person_id)
+    assert (
+        person.first_name == "Synthetic"
+        and person.other_names == "Contract"
+        and person.surname == "Unijay"
+    )
+    assert person.phone_normalized == "+233241234567"
+    assert person.date_of_birth == date(1990, 1, 2)
+    assert (
+        person.community == "Synthetic Community"
+        and person.region_code is None
+        and person.district_code is None
+    )
+    assert person.government_id_type == "GHANA_CARD"
+    assert person.government_id_ciphertext != data["identity"]["government_id"]
+    assert (
+        cipher().decrypt(person.government_id_ciphertext.encode()).decode()
+        == data["identity"]["government_id"]
+    )
+    assert person.government_id_hash == supply.identity_hash(
+        "GHANA_CARD", data["identity"]["government_id"]
+    )
+    assert person.source_system == participant.source_system == "UNIJAY_FASHION"
+    assert participant.created_via == "PARTICIPANT"
+    assert (
+        participant.readiness_status == "NOT_ASSESSED"
+        and participant.availability_status == "UNKNOWN"
+    )
+    assert participant.training_interests == ["CAREER_READINESS", "SOFT_SKILLS"]
+    assert db.scalar(select(func.count()).select_from(Skill)) == 0
+    consent = db.scalar(select(Consent))
+    assert consent.privacy_notice_version == "SYNTHETIC-1" and consent.status == "ACTIVE"
+    assert consent.source_system == "UNIJAY_FASHION"
+    assert submit(public, data).json() == result.json()
+    assert db.scalar(select(func.count()).select_from(Participant)) == 1
+    for same_identity in (False, True):
+        other = json.loads(json.dumps(data))
+        other["submission_id"] = str(uuid4())
+        other["basic"]["surname"] = "Another"
+        if same_identity:
+            other["contact"] = {"phone_raw": "0201234567", "community": "Another community"}
+        else:
+            other["identity"]["government_id"] = "GHA-987654321-0"
+        receipt = submit(public, other)
+        assert receipt.status_code == 202 and receipt.json()["status"] == result.json()["status"]
+        row = db.scalar(
+            select(PublicIntake).where(PublicIntake.submission_id == other["submission_id"])
+        )
+        assert row.status == "NEEDS_REVIEW" and row.participant_id is None
+        assert "GHA-" not in row.payload_ciphertext
+    assert db.scalar(select(func.count()).select_from(Participant)) == 1
+    assert public.get("/api/v1/participants").status_code == 401
+    assert public.get(f"/api/v1/participants/{participant.id}").status_code == 401
+    assert public.get("/api/v1/intake-operations").status_code == 401
+    assert "GHA-123456789-0" not in caplog.text + result.text
+    audits = [str(item.after_json) for item in db.scalars(select(AuditEvent))]
+    assert "GHA-123456789-0" not in str(audits)
+    staff = staff_login(db, "ADMIN")
+    detail = staff.get(f"/api/v1/participants/{participant.id}")
+    assert detail.status_code == 200
+    assert "GHA-123456789-0" not in detail.text and person.government_id_hash not in detail.text
+    assert "CAREER_READINESS" in detail.text
+    evidence = staff.get(f"/api/v1/intake-operations/{result.json()['receipt_id']}")
+    assert evidence.status_code == 200 and "GHA-123456789-0" not in evidence.text

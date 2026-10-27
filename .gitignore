@@ -2,7 +2,9 @@
 .env.*
 !.env.example
 !.env.staging.example
+!.env.production.example
 .next/
+.next-local-production/
 node_modules/
 dist/
 build/

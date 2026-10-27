@@ -6,11 +6,16 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import config from "./next.config.mjs";
 
 const directory = dirname(fileURLToPath(import.meta.url));
+const outputDirectory = config.distDir ?? ".next";
 if (config.output === "standalone") {
-  const target = join(directory, ".next/standalone/apps/web");
-  cpSync(join(directory, ".next/static"), join(target, ".next/static"), {
-    recursive: true,
-  });
+  const target = join(directory, outputDirectory, "standalone/apps/web");
+  cpSync(
+    join(directory, outputDirectory, "static"),
+    join(target, outputDirectory, "static"),
+    {
+      recursive: true,
+    },
+  );
   if (existsSync(join(directory, "public"))) {
     cpSync(join(directory, "public"), join(target, "public"), {
       recursive: true,

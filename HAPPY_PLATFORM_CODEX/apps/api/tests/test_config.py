@@ -1,12 +1,24 @@
+import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
+from cryptography.fernet import Fernet
+from pydantic import SecretStr
 
 from app.core.config import API_ROOT, PROJECT_ROOT, Settings, environment_files
 
 
-def test_environment_files_are_anchored_to_project() -> None:
-    assert Settings.model_config["env_file"] == (
+@pytest.fixture(autouse=True)
+def isolate_legacy_adapter_test_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("ENABLE_LEGACY_INTEGRATIONS", raising=False)
+
+
+def test_environment_files_are_anchored_to_project(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("HAPPY_ENV_FILE", raising=False)
+    assert environment_files() == (
         PROJECT_ROOT / ".env",
         API_ROOT / ".env",
     )
@@ -82,7 +94,7 @@ def test_production_accepts_explicit_secure_configuration() -> None:
         database_url="postgresql+psycopg://happy:unique-production-secret@db/happy",
         api_cors_origins=["https://happy.example.org"],
         s3_secret_access_key="unique-object-storage-secret",
-        identity_encryption_key="generated-fernet-key",
+        identity_encryption_key=Fernet.generate_key().decode(),
         identity_lookup_key="independent-lookup-secret-at-least-32-characters",
         backup_s3_bucket="happy-production-backups",
         alert_webhook_url="https://alerts.example.org/happy",
@@ -90,3 +102,77 @@ def test_production_accepts_explicit_secure_configuration() -> None:
     )
 
     assert configured.app_env == "production"
+
+
+@pytest.mark.parametrize("key", ["SENTINEL-invalid-key", "SENTINEL-\u2603", "YWJj"])
+def test_bad_fernet_key_is_rejected_without_exposing_input(key: str) -> None:
+    with pytest.raises(ValueError, match="Fernet") as failed:
+        Settings(identity_encryption_key=key)
+    assert key not in str(failed.value)
+
+
+def test_production_validation_does_not_render_any_input_credentials() -> None:
+    with pytest.raises(ValueError) as failed:
+        Settings(
+            app_env="production",
+            identity_encryption_key="",
+            database_url="postgresql://app:SENTINEL-database-secret@db/happy",
+            s3_secret_access_key="SENTINEL-object-storage-secret",
+        )
+    assert "SENTINEL" not in str(failed.value)
+
+
+def test_configuration_repr_does_not_expose_database_or_telemetry_credentials() -> None:
+    configured = Settings(
+        database_url="postgresql://app:SENTINEL-database-secret@db/happy",
+        otel_exporter_otlp_headers={"Authorization": "Bearer SENTINEL-telemetry-secret"},
+    )
+    assert "SENTINEL" not in repr(configured)
+
+
+@pytest.mark.parametrize("module", ["app.main", "app.workers.operations"])
+def test_actual_api_and_worker_startup_reject_bad_key_without_secret_output(module: str) -> None:
+    result = subprocess.run(
+        [sys.executable, "-c", f"import {module}"],
+        cwd=API_ROOT,
+        env={**os.environ, "IDENTITY_ENCRYPTION_KEY": "SENTINEL-invalid-startup-key"},
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode != 0
+    assert "Fernet" in result.stderr
+    assert "SENTINEL" not in result.stdout + result.stderr
+
+
+def test_application_encryption_round_trips_in_separate_worker_process(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.core.config import settings
+    from app.integrations.hamis.service import encrypt_payload
+
+    key = Fernet.generate_key().decode()
+    configured = Settings(identity_encryption_key=key)
+    monkeypatch.setattr(settings, "identity_encryption_key", SecretStr(key))
+    encrypted = encrypt_payload({"test": "synthetic key recovery"})
+    code = (
+        "import os,json; from app.integrations.hamis.service import decrypt_payload; "
+        "assert decrypt_payload(os.environ['TEST_CIPHERTEXT']) == "
+        "json.loads(os.environ['TEST_EXPECTED']); print('round-trip verified')"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=API_ROOT,
+        env={
+            **os.environ,
+            "IDENTITY_ENCRYPTION_KEY": configured.identity_encryption_key.get_secret_value(),
+            "TEST_CIPHERTEXT": encrypted,
+            "TEST_EXPECTED": json.dumps({"test": "synthetic key recovery"}),
+        },
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0
+    assert result.stdout.strip() == "round-trip verified"
+    assert key not in result.stdout + result.stderr

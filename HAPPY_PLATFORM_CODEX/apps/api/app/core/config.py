@@ -3,6 +3,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal, Self
 
+from cryptography.fernet import Fernet
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
@@ -26,8 +27,13 @@ class Settings(BaseSettings):
     app_env: Literal["development", "test", "staging", "production"] = "development"
     log_level: str = "INFO"
     database_url: str = Field(
-        default="postgresql+psycopg://happy:happy_dev_password@localhost:5432/happy"
+        default="postgresql+psycopg://happy:happy_dev_password@localhost:5432/happy", repr=False
     )
+    db_connect_timeout_seconds: int = Field(default=3, ge=1, le=30)
+    db_pool_size: int = Field(default=5, ge=1, le=50)
+    db_max_overflow: int = Field(default=5, ge=0, le=50)
+    db_pool_timeout_seconds: int = Field(default=3, ge=1, le=30)
+    db_pool_recycle_seconds: int = Field(default=1800, ge=60, le=86400)
     api_cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
     s3_endpoint_url: str = "http://localhost:9000"
     s3_bucket: str = "happy-local-private"
@@ -40,7 +46,7 @@ class Settings(BaseSettings):
     restore_admin_url: SecretStr = SecretStr("")
     alert_webhook_url: SecretStr = SecretStr("")
     otel_exporter_otlp_endpoint: str = ""
-    otel_exporter_otlp_headers: dict[str, str] = Field(default_factory=dict)
+    otel_exporter_otlp_headers: dict[str, str] = Field(default_factory=dict, repr=False)
     auth_session_hours: int = Field(default=8, ge=1, le=168)
     auth_idle_minutes: int = Field(default=30, ge=1, le=1440)
     auth_login_limit: int = Field(default=5, ge=1, le=100)
@@ -54,6 +60,7 @@ class Settings(BaseSettings):
     oidc_provider_name: str = "Organizational SSO"
     oidc_allowed_email_domains: list[str] = Field(default_factory=list)
     demand_vacancy_confirmation_required: bool = True
+    enable_legacy_integrations: bool = False
     public_intake_limit: int = Field(default=20, ge=1, le=1000)
     employer_intake_notice_text: str = ""
     supply_privacy_notice_text: str = ""
@@ -80,6 +87,25 @@ class Settings(BaseSettings):
     employer_portal_integration_token: SecretStr = SecretStr("")
     identity_encryption_key: SecretStr = SecretStr("")
     identity_lookup_key: SecretStr = SecretStr("")
+
+    @model_validator(mode="after")
+    def legacy_release_boundary(self) -> Self:
+        if self.enable_legacy_integrations and self.app_env in {"staging", "production"}:
+            raise ValueError(
+                "Legacy intake integrations cannot be enabled in a release environment."
+            )
+        return self
+
+    @field_validator("identity_encryption_key")
+    @classmethod
+    def valid_encryption_key(cls, value: SecretStr) -> SecretStr:
+        raw = value.get_secret_value()
+        if raw:
+            try:
+                Fernet(raw.encode("ascii"))
+            except (ValueError, TypeError):
+                raise ValueError("IDENTITY_ENCRYPTION_KEY must be a valid Fernet key.") from None
+        return value
 
     @field_validator("database_url", mode="before")
     @classmethod
@@ -145,6 +171,7 @@ class Settings(BaseSettings):
         env_file=environment_files(),
         env_file_encoding="utf-8",
         extra="ignore",
+        hide_input_in_errors=True,
     )
 
 

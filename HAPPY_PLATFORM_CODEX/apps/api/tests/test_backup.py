@@ -226,3 +226,80 @@ def test_restore_latest_downloads_provider_archive_and_runs_isolated_restore(
 
     assert revision == "0031_oidc_sso"
     assert client.download_file.call_count == 2
+
+
+@pytest.mark.parametrize("action", ["create", "scheduled", "restore-test", "restore-latest"])
+@pytest.mark.parametrize("failed", [False, True])
+def test_backup_and_restore_entrypoints_keep_sentinel_private(
+    action, failed, tmp_path, monkeypatch, capsys, caplog
+):
+    secret = "SENTINEL-entrypoint-password-42"
+    monkeypatch.setattr(
+        backup.settings, "database_url", f"postgresql://synthetic:{secret}@db/happy"
+    )
+    monkeypatch.setattr(
+        backup.settings,
+        "restore_admin_url",
+        backup.settings.restore_admin_url.__class__(f"postgresql://synthetic:{secret}@db/postgres"),
+    )
+    monkeypatch.setattr(backup.settings, "backup_s3_bucket", "synthetic-backups")
+    monkeypatch.delenv("HAPPY_RESTORE_ADMIN_URL", raising=False)
+    monkeypatch.setattr(backup, "BACKUP_ROOT", tmp_path)
+    monkeypatch.setattr(backup, "executable", lambda name: name)
+    archive = tmp_path / "synthetic.dump"
+    archive.write_bytes(b"synthetic backup")
+    manifest = {"sha256": backup.checksum(archive)}
+    archive.with_suffix(".dump.json").write_text(json.dumps(manifest))
+    observed = []
+
+    def child(command, **kwargs):
+        assert secret not in repr(command)
+        observed.append(command)
+        if "--dbname" in command:
+            assert kwargs["env"]["PGPASSWORD"] == secret
+            if failed:
+                return subprocess.CompletedProcess(command, 7, secret, secret)
+        if "--file" in command:
+            Path(command[command.index("--file") + 1]).write_bytes(b"synthetic backup")
+        return subprocess.CompletedProcess(command, 0, "TABLE public alembic_version", "")
+
+    monkeypatch.setattr(backup.subprocess, "run", child)
+    monkeypatch.setattr(backup.psycopg, "connect", MagicMock())
+    engine = MagicMock()
+    engine.connect.return_value.__enter__.return_value.scalar.side_effect = [
+        "0036_vacancy_terms",
+        20,
+    ]
+    monkeypatch.setattr(backup, "create_engine", lambda *args, **kwargs: engine)
+    storage = MagicMock()
+    storage.get_paginator.return_value.paginate.return_value = []
+    storage.list_objects_v2.return_value = {
+        "Contents": [{"Key": "database/synthetic.dump", "LastModified": datetime.now(UTC)}]
+    }
+
+    def download(bucket, key, target):
+        if key.endswith(".json"):
+            Path(target).write_text(json.dumps(manifest))
+        else:
+            Path(target).write_bytes(b"synthetic backup")
+
+    storage.download_file.side_effect = download
+    monkeypatch.setattr(backup, "get_storage_client", lambda: storage)
+    alerts = MagicMock()
+    monkeypatch.setattr(backup, "alert", alerts)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["backup", action, *([str(archive)] if action in {"create", "restore-test"} else [])],
+    )
+    if failed:
+        with pytest.raises(SystemExit) as stopped:
+            backup.main()
+        assert stopped.value.code == 1
+    else:
+        backup.main()
+    captured = capsys.readouterr()
+    assert observed
+    assert secret not in captured.out + captured.err + caplog.text
+    assert secret not in repr(alerts.call_args_list)
+    assert secret not in repr(storage.method_calls)

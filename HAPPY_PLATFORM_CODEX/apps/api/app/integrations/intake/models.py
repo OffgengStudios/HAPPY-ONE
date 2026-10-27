@@ -22,7 +22,9 @@ class PublicIntake(Base):
     __tablename__ = "public_intakes"
     __table_args__ = (
         UniqueConstraint("source", "submission_id", name="uq_public_intake_submission"),
-        CheckConstraint("source IN ('HAMIS','EMPLOYER_INTAKE')", name="ck_public_intake_source"),
+        CheckConstraint(
+            "source IN ('HAMIS','EMPLOYER_INTAKE','UNIJAY_FASHION')", name="ck_public_intake_source"
+        ),
         CheckConstraint(
             "status IN ('RECEIVED','NEEDS_REVIEW','APPLIED','REJECTED')",
             name="ck_public_intake_status",

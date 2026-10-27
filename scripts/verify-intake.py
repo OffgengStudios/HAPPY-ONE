@@ -16,6 +16,12 @@ PYTHON = PLATFORM / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin
 
 def main():
     environment = os.environ.copy()
+    # Explicitly retained legacy regression harness, never a release entrypoint.
+    environment["ENABLE_LEGACY_INTEGRATIONS"] = "true"
+    port = int(environment.get("HAPPY_INTAKE_TEST_PORT", "8765"))
+    if not 1 <= port <= 65535:
+        raise ValueError("HAPPY_INTAKE_TEST_PORT must be between 1 and 65535.")
+    environment["HAPPY_INTAKE_TEST_ORIGIN"] = f"http://127.0.0.1:{port}"
     result = subprocess.run(
         [str(PYTHON), "-m", "app.modules.iam.e2e", "start"],
         cwd=API,
@@ -49,7 +55,7 @@ def main():
             def log_message(self, *args):
                 pass
 
-        server = ThreadingHTTPServer(("127.0.0.1", 8765), Handler)
+        server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         # A genuine synthetic PDF exercises multipart upload and private storage.
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as document:

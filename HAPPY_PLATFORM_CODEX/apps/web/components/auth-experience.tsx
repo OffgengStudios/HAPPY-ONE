@@ -51,7 +51,6 @@ import { PlacementWorkspace } from "./placement-workspace";
 import { MerlWorkspace } from "./merl-workspace";
 import { MarketingWorkspace } from "./marketing-workspace";
 import { ReportingWorkspace } from "./reporting-workspace";
-import { EmployerSubmissionWorkspace } from "./employer-submission-workspace";
 import { TrainingWorkspace } from "./training-workspace";
 import { WorkWorkspace } from "./work-workspace";
 
@@ -442,12 +441,6 @@ function Experience() {
       allowed: user.permissions.includes("first_income:view"),
     },
     {
-      id: "employer-submissions",
-      name: "Employer Submissions",
-      icon: Inbox,
-      allowed: user.permissions.includes("employer_submission:view"),
-    },
-    {
       id: "employers",
       name: "Employers",
       icon: Building2,
@@ -661,10 +654,6 @@ function Experience() {
               }
             />
           )}
-          {active === "employer-submissions" &&
-            user.permissions.includes("employer_submission:view") && (
-              <EmployerSubmissionWorkspace />
-            )}
           {active === "training" &&
             user.permissions.includes("training:view") && (
               <TrainingWorkspace user={user} />

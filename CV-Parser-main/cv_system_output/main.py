@@ -6,7 +6,6 @@ Startup sequence:
 2. Mount API router
 3. Serve via uvicorn
 """
-import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -48,7 +47,7 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Configure CORS with restricted origins
-allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+allowed_origins = settings.CORS_ORIGINS.split(",")
 allowed_origins = [origin.strip() for origin in allowed_origins]
 
 app.add_middleware(

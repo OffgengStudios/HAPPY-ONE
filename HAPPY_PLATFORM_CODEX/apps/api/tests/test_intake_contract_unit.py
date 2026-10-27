@@ -39,3 +39,36 @@ def test_actual_employer_client_payload_is_accepted_by_public_api_schema():
     parsed = EmployerSubmission.model_validate(data)
     assert parsed.vacancies[0].openings == 2
     assert parsed.vacancies[0].requirements[0].value_json == "Excel"
+
+
+def test_unijay_contract_rejects_invalid_or_privileged_identity_and_training():
+    from uuid import uuid4
+
+    import pytest
+    from pydantic import ValidationError
+
+    from app.integrations.intake.service import submitted_payload
+
+    payload = {
+        "submission_id": str(uuid4()),
+        "basic": {"first_name": "Synthetic", "surname": "Person"},
+        "contact": {"phone_raw": "0241234567", "community": "Accra"},
+        "identity": {"government_id": "GHA-123456789-0"},
+        "training_interests": ["CAREER_READINESS", "SOFT_SKILLS"],
+        "consent": {"accepted": True, "notice_version": "SYNTHETIC-1"},
+        "reviewed": True,
+    }
+    parsed = ParticipantSubmission.model_validate(payload)
+    assert "GHA-123456789-0" not in repr(parsed)
+    assert submitted_payload(parsed)["identity"]["government_id"] == "GHA-123456789-0"
+    for field, value in [
+        ("identity", {"government_id": "INVALID"}),
+        ("identity", {"government_id": "GHA-123456789-0", "government_id_type": "VOTER_ID"}),
+        ("contact", {"phone_raw": "+447911123456", "community": "Accra"}),
+        ("demographics", {"date_of_birth": "2100-01-01"}),
+        ("demographics", {"date_of_birth": "1990-02-30"}),
+        ("training_interests", ["CAREER_READINESS", "CAREER_READINESS"]),
+        ("training_interests", ["VERIFIED_SKILL"]),
+    ]:
+        with pytest.raises(ValidationError):
+            ParticipantSubmission.model_validate({**payload, field: value})

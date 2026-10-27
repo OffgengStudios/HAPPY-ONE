@@ -56,6 +56,7 @@ jobs:
       S3_BUCKET: happy-test-private
       S3_ACCESS_KEY_ID: happy_local
       S3_SECRET_ACCESS_KEY: happy_local_storage_password
+      UNIJAY_REPOSITORY: ${{ github.workspace }}/UNIJAY
       PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/HAPPY_PLATFORM_CODEX/.local/browsers
     steps:
       - uses: actions/checkout@v4
@@ -70,6 +71,12 @@ jobs:
           node-version: "22"
           cache: pnpm
           cache-dependency-path: HAPPY_PLATFORM_CODEX/pnpm-lock.yaml
+      - uses: actions/checkout@v4
+        with:
+          repository: OffgengStudios/UNIJAY-FASHION-DATA-COLLECTION
+          ref: ${{ vars.UNIJAY_INTAKE_REF || 'main' }}
+          path: UNIJAY
+          token: ${{ secrets.UNIJAY_REPO_READ_TOKEN || github.token }}
       - name: Install dependencies
         run: |
           python -m venv .venv
@@ -85,8 +92,8 @@ jobs:
         run: |
           python scripts/install_storage.py
           APP_ENV=development pnpm storage:local
-      - name: Public intake browser integration
-        run: python ../scripts/verify-intake.py
+      - name: UNIJAY desktop and mobile browser contracts
+        run: node ../integration/unijay-browser.cjs
       - name: Verify foundation
         run: pnpm verify
       - name: Upload browser evidence
@@ -96,11 +103,27 @@ jobs:
           name: foundation-browser-results
           path: |
             HAPPY_PLATFORM_CODEX/apps/web/test-results
-            HAPPY_PLATFORM_CODEX/.local/hamis-*.png
-            HAPPY_PLATFORM_CODEX/.local/employer-*.png
+            .local/unijay-consolidation/unijay-*.png
           retention-days: 7
 
-  hamis:
+  unijay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: OffgengStudios/UNIJAY-FASHION-DATA-COLLECTION
+          ref: ${{ vars.UNIJAY_INTAKE_REF || 'main' }}
+          token: ${{ secrets.UNIJAY_REPO_READ_TOKEN || github.token }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node --check data-collection-tool/app.js
+      - run: node --test tests/*.test.cjs
+      - run: node build.mjs
+        env:
+          HAPPY_API_BASE_URL: https://happy-api.example.invalid
+
+  retained-legacy-contracts:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -109,19 +132,8 @@ jobs:
           node-version: "22"
       - run: node --check frontend/js/public-intake.js
       - run: node --check frontend/js/form-controls.js
-      - run: node --test integration/frontend.test.cjs
-      - run: node scripts/build-intake.mjs hamis
-
-  employer-intake:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
       - run: node --check portal/src/app.js
       - run: node --test integration/frontend.test.cjs
-      - run: node scripts/build-intake.mjs employer
 
   integration-contracts:
     runs-on: ubuntu-latest

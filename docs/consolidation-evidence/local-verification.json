@@ -1,0 +1,59 @@
+{
+  "date": "2026-10-27",
+  "backend": {
+    "tests": 376,
+    "failures": 0,
+    "errors": 0
+  },
+  "parser": {
+    "tests": 22,
+    "failures": 0
+  },
+  "collector_contracts": {
+    "tests": 2,
+    "failures": 0
+  },
+  "retained_frontend_contracts": {
+    "tests": 5,
+    "failures": 0
+  },
+  "collector_browser": {
+    "scenarios": 3,
+    "result": "PASS"
+  },
+  "staff_browser": {
+    "result": "PASS",
+    "tests": 100,
+    "failures": 0,
+    "synthetic_api_schema_teardown": "PASS"
+  },
+  "migrations": {
+    "model_drift": "PASS",
+    "fresh_full_replay": "PASS"
+  },
+  "backup": {
+    "real_pg_dump_success": "PASS",
+    "real_pg_dump_failure_safe": "PASS",
+    "real_pg_restore_success": "PASS",
+    "real_pg_restore_failure_safe": "PASS",
+    "scheduled_backup_real_dump": "PASS",
+    "restore_exercise_real_restore": "PASS",
+    "credential_absent_from_argv": "PASS",
+    "provider": "synthetic memory adapter",
+    "real_alert_delivery": "NOT VERIFIED"
+  },
+  "hosted_ci": {
+    "baseline_sha": "15facc8272a8cd4329390a988ba0984cf5397452",
+    "run_id": 39411245030,
+    "result": "success",
+    "current_working_changes": "NOT VERIFIED"
+  },
+  "deployment": "NOT PERFORMED",
+  "readiness": "LOCALLY INTEGRATED",
+  "cleanup": {
+    "known_synthetic_cv_objects_removed_and_verified": 1,
+    "remaining_synthetic_test_schemas": 0,
+    "remaining_synthetic_restore_databases": 0,
+    "remaining_synthetic_backup_roles": 0
+  }
+}

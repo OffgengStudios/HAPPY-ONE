@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const { chromium } = require(require.resolve('@playwright/test', { paths: [path.join(__dirname,'../HAPPY_PLATFORM_CODEX/apps/web')] }));
+const origin = process.env.HAPPY_INTAKE_TEST_ORIGIN || 'http://127.0.0.1:8765';
 
 (async () => {
   const browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_CHANNEL ? {channel:process.env.PLAYWRIGHT_CHANNEL} : {}) });
@@ -11,7 +12,7 @@ const { chromium } = require(require.resolve('@playwright/test', { paths: [path.
       const errors=[];page.on('pageerror', error=>errors.push(error.message));
       // Make the test independent of third-party font/CDN availability.
       await page.route(/^https:\/\/(?:fonts\.|cdn\.tailwindcss)/,route=>route.abort());
-      await page.goto('http://127.0.0.1:8765/frontend/');
+      await page.goto(origin + '/frontend/');
       await page.locator('#consent-submit').waitFor({state:'visible'});
       await page.locator('#consent-accepted').check();
       await page.locator('#consent-submit').click();
@@ -37,7 +38,7 @@ const { chromium } = require(require.resolve('@playwright/test', { paths: [path.
       assert.equal(await page.locator('input[type=password]').count(),0);
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
       await page.screenshot({path:path.join(__dirname,'../HAPPY_PLATFORM_CODEX/.local/hamis-'+name+'.png'),fullPage:true});
-      await page.goto('http://127.0.0.1:8765/portal/');
+      await page.goto(origin + '/portal/');
       await page.getByLabel('Company name',{exact:true}).fill('Synthetic Browser Employer '+name);
       await page.getByLabel('Contact name',{exact:true}).fill('Synthetic Contact');
       await page.getByLabel('Contact phone',{exact:true}).fill(name==='desktop'?'0243335501':'0243335502');
