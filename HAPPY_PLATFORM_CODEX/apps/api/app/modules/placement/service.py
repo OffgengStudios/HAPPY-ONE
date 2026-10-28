@@ -269,7 +269,9 @@ def confirm_start(
     row = locked(db, identifier, values.version)
     if row.status != "START_PENDING":
         fail("INVALID_PLACEMENT_TRANSITION", "Only a pending start can be confirmed.", 422)
-    vacancy = get_record(db, Vacancy, row.vacancy_id)
+    # Serialize starts for different placements sharing one vacancy.
+    # Use Demand's employer → vacancy lock order before reading capacity.
+    vacancy = get_record(db, Vacancy, row.vacancy_id, lock=True)
     if (
         headcount(vacancy, db)["started"] >= vacancy.required_headcount
         and "vacancy:overfill_override" not in actor.permissions

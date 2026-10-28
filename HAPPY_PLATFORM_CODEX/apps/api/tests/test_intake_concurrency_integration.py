@@ -1,5 +1,6 @@
 """Simultaneous HTTP submissions use independent real PostgreSQL transactions."""
 
+import io
 import os
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
@@ -8,16 +9,20 @@ import pytest
 from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
+from pypdf import PdfWriter
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session
-from test_public_intake_integration import ORIGIN, payload, submit
+from test_public_intake_integration import ORIGIN, payload, staff_login, submit
 
 from app.core.config import settings
 from app.db.sandbox import create_test_schema, drop_test_schema
 from app.db.session import get_db
 from app.integrations.intake.models import PublicIntake
 from app.main import app
-from app.modules.supply.models import Participant
+from app.modules.external_references.models import ExternalReference
+from app.modules.iam.models import AuditEvent
+from app.modules.supply.models import Document, Participant, Person
+from app.storage.s3 import get_storage_client
 
 pytestmark = [
     pytest.mark.integration,
@@ -82,7 +87,83 @@ def test_simultaneous_replays_and_distinct_duplicate_submissions(monkeypatch):
                 )
                 == 1
             )
+        with Session(engine, expire_on_commit=False) as session:
+            staff = staff_login(session, "ADMIN")
+            pending = session.scalar(
+                select(PublicIntake).where(PublicIntake.status == "NEEDS_REVIEW")
+            )
+            target = session.scalar(
+                select(Participant).join(Person).where(Person.surname == "ConcurrentCase")
+            )
+            pending_id, target_id = pending.id, target.id
+
+        def simultaneous(send):
+            gate = Barrier(2)
+
+            def operation(_):
+                gate.wait(timeout=10)
+                return send()
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                return list(pool.map(operation, range(2)))
+
+        resolutions = simultaneous(
+            lambda: staff.post(
+                f"/api/v1/intake-operations/{pending_id}/resolve",
+                json={
+                    "existing_participant_id": str(target_id),
+                    "reason": "Synthetic human duplicate review",
+                },
+            )
+        )
+        assert sorted(response.status_code for response in resolutions) == [200, 409]
+        with Session(engine) as session:
+            assert session.scalar(select(func.count()).select_from(Participant)) == 2
+            assert (
+                session.scalar(
+                    select(func.count())
+                    .select_from(ExternalReference)
+                    .where(ExternalReference.external_id == str(pending.submission_id))
+                )
+                == 1
+            )
+            assert (
+                session.scalar(
+                    select(func.count())
+                    .select_from(AuditEvent)
+                    .where(
+                        AuditEvent.entity_id == pending_id,
+                        AuditEvent.event_code == "participant_intake.duplicate_resolved",
+                    )
+                )
+                == 1
+            )
+            version = session.get(Participant, target_id).version
+        output = io.BytesIO()
+        pdf = PdfWriter()
+        pdf.add_blank_page(width=100, height=100)
+        pdf.write(output)
+        versions = simultaneous(
+            lambda: staff.post(
+                f"/api/v1/participants/{target_id}/cv",
+                data={"version": version},
+                files={"file": ("synthetic-concurrent.pdf", output.getvalue(), "application/pdf")},
+            )
+        )
+        assert sorted(response.status_code for response in versions) == [201, 409], [
+            response.text for response in versions
+        ]
+        with Session(engine) as session:
+            documents = list(
+                session.scalars(select(Document).where(Document.participant_id == target_id))
+            )
+            assert len(documents) == 1 and documents[0].version_number == 1
     finally:
+        with Session(engine) as session:
+            for document in session.scalars(select(Document)):
+                get_storage_client().delete_object(
+                    Bucket=settings.s3_bucket, Key=document.storage_key
+                )
         app.dependency_overrides.clear()
         engine.dispose()
         drop_test_schema(schema)

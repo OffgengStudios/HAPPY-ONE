@@ -92,7 +92,7 @@ def participants(
             query = query.where(column == value)
     page = page_query(query, Participant, db, limit, cursor)
     return {
-        "items": [s.participant_view(db, row) for row in page["rows"]],
+        "items": s.participant_views(db, page["rows"]),
         "next_cursor": page["next_cursor"],
     }
 

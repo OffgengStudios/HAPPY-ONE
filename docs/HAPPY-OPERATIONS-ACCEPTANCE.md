@@ -70,4 +70,4 @@ The owner selected RPO = 1 hour and RTO = 2 hours on 2026-10-27. Treat these as 
 
 ## Remaining acceptance
 
-Provider access, real staging deployment, policy approval, hosted alert receipt, provider backup/restore, full object/key recovery, six-domain concurrency coverage, representative load, role UAT and manual accessibility remain open. Local private storage and local ClamAV results are separate evidence.
+Provider access, real staging deployment, policy approval, hosted alert receipt, provider backup/restore, full object/key recovery, staging repetition of the six-domain local concurrency coverage, representative hosted load, role UAT and manual accessibility remain open. Local private storage and local ClamAV results are separate evidence.

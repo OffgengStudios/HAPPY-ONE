@@ -222,10 +222,16 @@ def headcount(row: Vacancy, db: Session | None = None) -> dict[str, int]:
     }
 
 
-def vacancy_view(db: Session, row: Vacancy) -> dict[str, Any]:
+def vacancy_view(
+    db: Session,
+    row: Vacancy,
+    *,
+    employer: Organization | None = None,
+    counts: dict[str, int] | None = None,
+) -> dict[str, Any]:
     from app.core.config import settings
 
-    employer = get_record(db, Organization, row.organization_id)
+    employer = employer or get_record(db, Organization, row.organization_id)
     end = row.closed_at or now()
     age = max((end.date() - row.opened_at.date()).days, 0) if row.opened_at else None
     allowed = VACANCY_EDGES.get(row.status, set()).copy()
@@ -234,10 +240,54 @@ def vacancy_view(db: Session, row: Vacancy) -> dict[str, Any]:
     return {
         **view(row),
         "organization_name": employer.name,
-        "headcount": headcount(row, db),
+        "headcount": headcount(row, db) if counts is None else counts,
         "age_days": age,
         "allowed_transitions": sorted(allowed),
     }
+
+
+def vacancy_views(db: Session, rows: list[Vacancy]) -> list[dict[str, Any]]:
+    from app.modules.placement.models import Placement
+
+    if not rows:
+        return []
+    employers = {
+        employer.id: employer
+        for employer in db.scalars(
+            select(Organization).where(Organization.id.in_({row.organization_id for row in rows}))
+        )
+    }
+    totals = {
+        identifier: (started, confirmed)
+        for identifier, started, confirmed in db.execute(
+            select(
+                Placement.vacancy_id,
+                func.count().filter(
+                    Placement.actual_start_date.is_not(None),
+                    Placement.status.not_in({"FAILED_TO_START", "CANCELLED"}),
+                ),
+                func.count().filter(Placement.confirmed_at.is_not(None)),
+            )
+            .where(
+                Placement.vacancy_id.in_({row.id for row in rows}), Placement.archived_at.is_(None)
+            )
+            .group_by(Placement.vacancy_id)
+        )
+    }
+    return [
+        vacancy_view(
+            db,
+            row,
+            employer=employers[row.organization_id],
+            counts={
+                "required": row.required_headcount,
+                "started": totals.get(row.id, (0, 0))[0],
+                "confirmed_placements": totals.get(row.id, (0, 0))[1],
+                "outstanding": max(row.required_headcount - totals.get(row.id, (0, 0))[0], 0),
+            },
+        )
+        for row in rows
+    ]
 
 
 def log_change(

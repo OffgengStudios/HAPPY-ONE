@@ -142,7 +142,13 @@ def required_consent(db: Session, participant: Participant) -> bool:
     )
 
 
-def checklist(db: Session, row: Participant) -> dict[str, Any]:
+def checklist(
+    db: Session,
+    row: Participant,
+    *,
+    person: Person | None = None,
+    consent_active: bool | None = None,
+) -> dict[str, Any]:
     required = set(settings.supply_required_sections) | {"basic", "contact", "consent"}
     if not required <= set(s.SECTIONS):
         raise ApiError(
@@ -168,7 +174,7 @@ def checklist(db: Session, row: Participant) -> dict[str, Any]:
     }
     if not field_names <= person_fields | participant_fields | {"government_id"}:
         raise ApiError(503, "ONBOARDING_POLICY_INVALID", "Correct the required onboarding fields.")
-    person = get_record(db, Person, row.person_id)
+    person = person or get_record(db, Person, row.person_id)
     missing_fields = sorted(
         name
         for name in field_names
@@ -178,7 +184,7 @@ def checklist(db: Session, row: Participant) -> dict[str, Any]:
             else getattr(person if name in person_fields else row, name)
         )
     )
-    if required_consent(db, row):
+    if required_consent(db, row) if consent_active is None else consent_active:
         completed.add("consent")
     else:
         completed.discard("consent")
@@ -225,16 +231,24 @@ def assert_submission_eligible(db: Session, row: Participant) -> None:
         )
 
 
-def participant_view(db: Session, row: Participant) -> dict[str, Any]:
-    person = get_record(db, Person, row.person_id)
-    progress = checklist(db, row)
+def participant_view(
+    db: Session,
+    row: Participant,
+    *,
+    person: Person | None = None,
+    consent_active: bool | None = None,
+) -> dict[str, Any]:
+    person = person or get_record(db, Person, row.person_id)
+    if consent_active is None:
+        consent_active = required_consent(db, row)
+    progress = checklist(db, row, person=person, consent_active=consent_active)
     eligible = (
         not row.archived_at
         and row.onboarding_status == "COMPLETE"
         and not progress["missing_sections"]
         and not progress["missing_fields"]
         and progress["policy_configured"]
-        and required_consent(db, row)
+        and consent_active
     )
     return {
         **fields(person, PERSON_PUBLIC),
@@ -248,6 +262,35 @@ def participant_view(db: Session, row: Participant) -> dict[str, Any]:
         "archived_at": row.archived_at,
         "submission_eligible": eligible,
     }
+
+
+def participant_views(db: Session, rows: list[Participant]) -> list[dict[str, Any]]:
+    if not rows:
+        return []
+    people = {
+        person.id: person
+        for person in db.scalars(
+            select(Person).where(Person.id.in_({row.person_id for row in rows}))
+        )
+    }
+    consenting = (
+        set(
+            db.scalars(
+                select(Consent.participant_id).where(
+                    Consent.participant_id.in_({row.id for row in rows}),
+                    Consent.consent_type == "PROGRAMME",
+                    Consent.status == "ACTIVE",
+                    Consent.privacy_notice_version == settings.supply_privacy_notice_version,
+                )
+            )
+        )
+        if settings.supply_privacy_notice_version
+        else set()
+    )
+    return [
+        participant_view(db, row, person=people[row.person_id], consent_active=row.id in consenting)
+        for row in rows
+    ]
 
 
 def lock(db: Session, identifier: UUID, version: int) -> Participant:
