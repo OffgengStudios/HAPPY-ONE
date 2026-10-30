@@ -1,0 +1,371 @@
+# Production launch candidate. Applying this file creates billable services and scheduled jobs.
+# Read docs/PRODUCTION-LAUNCH.md and approve the schedules before applying.
+# Main must contain the reviewed release revision. Keep automatic deployment off.
+# Supply the database/storage/scanner/monitoring inputs through the secret manager.
+services:
+  - name: happy-one-production-parser
+    type: pserv
+    runtime: docker
+    branch: main
+    dockerContext: CV-Parser-main/cv_system_output
+    dockerfilePath: CV-Parser-main/cv_system_output/Dockerfile.happy
+    autoDeployTrigger: "off"
+    envVars:
+      - key: HAPPY_PARSER_TOKEN
+        generateValue: true
+  - name: happy-one-production-api
+    type: web
+    runtime: docker
+    branch: main
+    dockerContext: HAPPY_PLATFORM_CODEX
+    dockerfilePath: HAPPY_PLATFORM_CODEX/infra/deployment/api.Dockerfile
+    autoDeployTrigger: "off"
+    preDeployCommand: python /app/scripts/preflight.py && alembic upgrade head
+    healthCheckPath: /api/v1/health/ready
+    envVars:
+      - key: ENABLE_LEGACY_INTEGRATIONS
+        value: "false"
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: API_CORS_ORIGINS
+        sync: false
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: IDENTITY_ENCRYPTION_KEY
+        sync: false
+      - key: IDENTITY_LOOKUP_KEY
+        sync: false
+      - key: BACKUP_S3_BUCKET
+        sync: false
+      - key: ALERT_WEBHOOK_URL
+        sync: false
+      - key: OTEL_EXPORTER_OTLP_ENDPOINT
+        sync: false
+      - key: OTEL_EXPORTER_OTLP_HEADERS
+        sync: false
+      - key: SUPPLY_PRIVACY_NOTICE_VERSION
+        sync: false
+      - key: SUPPLY_PRIVACY_NOTICE_TEXT
+        sync: false
+      - key: SUPPLY_ONBOARDING_POLICY_APPROVED
+        sync: false
+      - key: SUPPLY_REQUIRED_SECTIONS
+        sync: false
+      - key: SUPPLY_REQUIRED_FIELDS
+        sync: false
+      - key: FILE_SCAN_HOST
+        sync: false
+      - key: FILE_SCAN_PORT
+        value: "3310"
+      - key: BACKUP_S3_PREFIX
+        value: database/
+      - key: BACKUP_RETENTION_DAYS
+        sync: false
+      - key: CV_PARSER_HOSTPORT
+        fromService:
+          name: happy-one-production-parser
+          type: pserv
+          property: hostport
+      - key: CV_PARSER_TOKEN
+        fromService:
+          name: happy-one-production-parser
+          type: pserv
+          envVarKey: HAPPY_PARSER_TOKEN
+  - name: happy-one-production-worker
+    type: worker
+    runtime: docker
+    branch: main
+    dockerContext: HAPPY_PLATFORM_CODEX
+    dockerfilePath: HAPPY_PLATFORM_CODEX/infra/deployment/api.Dockerfile
+    autoDeployTrigger: "off"
+    dockerCommand: python -m app.workers.operations
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: DATABASE_URL
+      - key: API_CORS_ORIGINS
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: API_CORS_ORIGINS
+      - key: S3_ENDPOINT_URL
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: S3_ENDPOINT_URL
+      - key: S3_REGION
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: S3_REGION
+      - key: S3_BUCKET
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: S3_BUCKET
+      - key: S3_ACCESS_KEY_ID
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: S3_ACCESS_KEY_ID
+      - key: S3_SECRET_ACCESS_KEY
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: S3_SECRET_ACCESS_KEY
+      - key: IDENTITY_ENCRYPTION_KEY
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: IDENTITY_ENCRYPTION_KEY
+      - key: IDENTITY_LOOKUP_KEY
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: IDENTITY_LOOKUP_KEY
+      - key: BACKUP_S3_BUCKET
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: BACKUP_S3_BUCKET
+      - key: ALERT_WEBHOOK_URL
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: ALERT_WEBHOOK_URL
+      - key: OTEL_EXPORTER_OTLP_ENDPOINT
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: OTEL_EXPORTER_OTLP_ENDPOINT
+      - key: OTEL_EXPORTER_OTLP_HEADERS
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: OTEL_EXPORTER_OTLP_HEADERS
+      - key: FILE_SCAN_HOST
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: FILE_SCAN_HOST
+      - key: FILE_SCAN_PORT
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: FILE_SCAN_PORT
+      - key: CV_PARSER_HOSTPORT
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: CV_PARSER_HOSTPORT
+      - key: CV_PARSER_TOKEN
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: CV_PARSER_TOKEN
+  - name: happy-one-production-staff
+    type: web
+    runtime: docker
+    branch: main
+    dockerContext: HAPPY_PLATFORM_CODEX
+    dockerfilePath: HAPPY_PLATFORM_CODEX/infra/deployment/web.Dockerfile
+    autoDeployTrigger: "off"
+    healthCheckPath: /
+    envVars:
+      - key: NEXT_PUBLIC_APP_ENV
+        value: production
+      - key: API_INTERNAL_URL
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+  - name: happy-one-production-backup
+    type: cron
+    runtime: docker
+    branch: main
+    dockerContext: HAPPY_PLATFORM_CODEX
+    dockerfilePath: HAPPY_PLATFORM_CODEX/infra/deployment/api.Dockerfile
+    # Owner-selected RPO: one hour. Half-hourly snapshots leave execution margin;
+    # provider backup age and full recovery still require measured acceptance.
+    schedule: "*/30 * * * *"
+    dockerCommand: python -m app.db.backup scheduled
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: DATABASE_URL
+      - key: API_CORS_ORIGINS
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: API_CORS_ORIGINS
+      - key: S3_ENDPOINT_URL
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: S3_ENDPOINT_URL
+      - key: S3_REGION
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: S3_REGION
+      - key: S3_BUCKET
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: S3_BUCKET
+      - key: S3_ACCESS_KEY_ID
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: S3_ACCESS_KEY_ID
+      - key: S3_SECRET_ACCESS_KEY
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: S3_SECRET_ACCESS_KEY
+      - key: IDENTITY_ENCRYPTION_KEY
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: IDENTITY_ENCRYPTION_KEY
+      - key: IDENTITY_LOOKUP_KEY
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: IDENTITY_LOOKUP_KEY
+      - key: BACKUP_S3_BUCKET
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: BACKUP_S3_BUCKET
+      - key: ALERT_WEBHOOK_URL
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: ALERT_WEBHOOK_URL
+      - key: OTEL_EXPORTER_OTLP_ENDPOINT
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: OTEL_EXPORTER_OTLP_ENDPOINT
+      - key: OTEL_EXPORTER_OTLP_HEADERS
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: OTEL_EXPORTER_OTLP_HEADERS
+      - key: BACKUP_S3_PREFIX
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: BACKUP_S3_PREFIX
+      - key: BACKUP_RETENTION_DAYS
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: BACKUP_RETENTION_DAYS
+  - name: happy-one-production-restore
+    type: cron
+    runtime: docker
+    branch: main
+    dockerContext: HAPPY_PLATFORM_CODEX
+    dockerfilePath: HAPPY_PLATFORM_CODEX/infra/deployment/api.Dockerfile
+    schedule: 0 4 * * 0
+    dockerCommand: python -m app.db.backup restore-latest
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: DATABASE_URL
+      - key: API_CORS_ORIGINS
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: API_CORS_ORIGINS
+      - key: S3_ENDPOINT_URL
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: S3_ENDPOINT_URL
+      - key: S3_REGION
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: S3_REGION
+      - key: S3_BUCKET
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: S3_BUCKET
+      - key: S3_ACCESS_KEY_ID
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: S3_ACCESS_KEY_ID
+      - key: S3_SECRET_ACCESS_KEY
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: S3_SECRET_ACCESS_KEY
+      - key: IDENTITY_ENCRYPTION_KEY
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: IDENTITY_ENCRYPTION_KEY
+      - key: IDENTITY_LOOKUP_KEY
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: IDENTITY_LOOKUP_KEY
+      - key: BACKUP_S3_BUCKET
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: BACKUP_S3_BUCKET
+      - key: ALERT_WEBHOOK_URL
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: ALERT_WEBHOOK_URL
+      - key: OTEL_EXPORTER_OTLP_ENDPOINT
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: OTEL_EXPORTER_OTLP_ENDPOINT
+      - key: OTEL_EXPORTER_OTLP_HEADERS
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: OTEL_EXPORTER_OTLP_HEADERS
+      - key: BACKUP_S3_PREFIX
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: BACKUP_S3_PREFIX
+      - key: BACKUP_RETENTION_DAYS
+        fromService:
+          name: happy-one-production-api
+          type: web
+          envVarKey: BACKUP_RETENTION_DAYS
+      - key: RESTORE_ADMIN_URL
+        sync: false

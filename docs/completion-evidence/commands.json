@@ -1,0 +1,67 @@
+[
+  {
+    "label": "01-empty-migration",
+    "exit_code": 0,
+    "seconds": 13.636
+  },
+  {
+    "label": "02-report-final-lease-before-fix",
+    "exit_code": 1,
+    "seconds": 153.958
+  },
+  {
+    "label": "03-report-and-hamis-recovery-suite",
+    "exit_code": 0,
+    "seconds": 76.946
+  },
+  {
+    "label": "04-worker-recovery-regressions",
+    "exit_code": 0,
+    "seconds": 67.53
+  },
+  {
+    "label": "05-private-logs-and-otlp",
+    "exit_code": 1,
+    "seconds": 8.676
+  },
+  {
+    "label": "06-private-telemetry-and-foundation",
+    "exit_code": 0,
+    "seconds": 9.147
+  },
+  {
+    "label": "07-actual-server-logs-and-otlp",
+    "exit_code": 0,
+    "seconds": 11.292
+  },
+  {
+    "label": "08-csv-before-fix",
+    "exit_code": 1,
+    "seconds": 12.478
+  },
+  {
+    "label": "09-csv-public-and-worker-exports",
+    "exit_code": 0,
+    "seconds": 16.06
+  },
+  {
+    "label": "10-csv-unicode-and-integration",
+    "exit_code": 0,
+    "seconds": 17.181
+  },
+  {
+    "label": "11-document-limit-before-fix",
+    "exit_code": 1,
+    "seconds": 8.683
+  },
+  {
+    "label": "12-bounded-documents-and-intakes",
+    "exit_code": 0,
+    "seconds": 45.278
+  },
+  {
+    "label": "13-document-exact-boundaries",
+    "exit_code": 0,
+    "seconds": 8.717
+  }
+]

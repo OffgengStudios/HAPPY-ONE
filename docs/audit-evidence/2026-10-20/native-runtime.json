@@ -1,0 +1,174 @@
+{
+  "components": {
+    "postgres": "18.4 real independent database",
+    "api": "APP_ENV=production, loopback HTTP behind audit-only HTTPS proxy",
+    "parser": "actual stateless HTTP service, machine token",
+    "worker": "actual operations loop",
+    "storage": "real authenticated private S3-compatible SeaweedFS",
+    "scanner": "unavailable; no simulated successful scan",
+    "telemetry_and_alerts": "intentionally unreachable loopback HTTPS; provider delivery NOT VERIFIED",
+    "tls": "local self-signed CA explicitly trusted by probe, public certificate NOT VERIFIED"
+  },
+  "real_parser_pdf": {
+    "status": 200,
+    "suggestion_count": 6,
+    "anonymous_status": 401
+  },
+  "production_session": {
+    "status": 200,
+    "secure": true,
+    "http_only": true,
+    "same_site_lax": true
+  },
+  "public_intake": {
+    "status": 202,
+    "receipt_keys": [
+      "receipt_id",
+      "status"
+    ],
+    "replay_identical": true,
+    "changed_key_status": 409,
+    "internal_access": 401,
+    "participant_cookies": 0,
+    "staff_user_count_after_submission": 1
+  },
+  "employer_intake": {
+    "status": 202,
+    "converted_vacancy_initial_status": "DRAFT"
+  },
+  "scanner_fail_closed": {
+    "scan_status": "SCANNING",
+    "parser_jobs": 0,
+    "staff_download_status": 409,
+    "anonymous_object_status": 403
+  },
+  "background_export": {
+    "status": "SUCCEEDED",
+    "download_status": 200,
+    "bytes": 282,
+    "worker_alive": true
+  },
+  "performance": {
+    "samples": [
+      {
+        "path": "/participants",
+        "requests": 12,
+        "mean_ms": 529.9,
+        "median_ms": 552.51,
+        "p95_ms": 727.96
+      },
+      {
+        "path": "/participants?q=Synthetic",
+        "requests": 12,
+        "mean_ms": 429.82,
+        "median_ms": 402.83,
+        "p95_ms": 703.69
+      },
+      {
+        "path": "/organizations",
+        "requests": 12,
+        "mean_ms": 369.55,
+        "median_ms": 376.64,
+        "p95_ms": 453.34
+      },
+      {
+        "path": "/vacancies",
+        "requests": 12,
+        "mean_ms": 464.98,
+        "median_ms": 465.35,
+        "p95_ms": 739.42
+      },
+      {
+        "path": "/demand/dashboard",
+        "requests": 12,
+        "mean_ms": 459.08,
+        "median_ms": 429.03,
+        "p95_ms": 723.67
+      },
+      {
+        "path": "/supply/dashboard",
+        "requests": 12,
+        "mean_ms": 354.84,
+        "median_ms": 342.4,
+        "p95_ms": 433.5
+      },
+      {
+        "path": "/reports/kpis?date_from=2026-01-01&date_to=2026-12-31",
+        "requests": 12,
+        "mean_ms": 626.86,
+        "median_ms": 625.55,
+        "p95_ms": 1052.79
+      },
+      {
+        "path": "/participants/9caac7e1-c56c-4b52-9c59-b3e38e22c15a/cv/versions",
+        "requests": 12,
+        "mean_ms": 486.39,
+        "median_ms": 438.08,
+        "p95_ms": 897.3
+      }
+    ],
+    "dataset": "2 synthetic participants, 1 employer, 1 vacancy; includes audit HTTPS reverse proxy overhead; capacity NOT VERIFIED"
+  },
+  "backup_restore": {
+    "archive_bytes": 315804,
+    "checksum_verified": true,
+    "backup_seconds": 1.292,
+    "builtin_restore_seconds": 21.935,
+    "revision": "0036_vacancy_terms",
+    "independent_row_comparison": [
+      {
+        "table": "participants",
+        "rows": 2,
+        "identical": true
+      },
+      {
+        "table": "organizations",
+        "rows": 1,
+        "identical": true
+      },
+      {
+        "table": "organization_contacts",
+        "rows": 1,
+        "identical": true
+      },
+      {
+        "table": "vacancies",
+        "rows": 1,
+        "identical": true
+      },
+      {
+        "table": "documents",
+        "rows": 1,
+        "identical": true
+      },
+      {
+        "table": "consents",
+        "rows": 2,
+        "identical": true
+      },
+      {
+        "table": "audit_events",
+        "rows": 20,
+        "identical": true
+      },
+      {
+        "table": "public_intakes",
+        "rows": 3,
+        "identical": true
+      },
+      {
+        "table": "report_export_jobs",
+        "rows": 1,
+        "identical": true
+      }
+    ],
+    "live_database_targeted": false,
+    "external_backup_retention": "NOT VERIFIED",
+    "private_file_bytes_in_db_dump": false
+  },
+  "cleanup": {
+    "native_processes_stopped": true,
+    "synthetic_database_retained": "happy_audit_prod_ebff9e84",
+    "no_original_services_stopped": true
+  }
+}

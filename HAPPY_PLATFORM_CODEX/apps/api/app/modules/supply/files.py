@@ -2,6 +2,7 @@ import hashlib
 import io
 import socket
 import struct
+import time
 import zipfile
 from pathlib import PureWindowsPath
 from typing import Literal, Protocol
@@ -14,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.errors import ApiError
+from app.core.reliability_metrics import scanner_duration, scanner_results
 from app.modules.iam.models import now
 from app.modules.supply.models import Document, Participant
 from app.storage.s3 import get_storage_client
@@ -90,6 +92,17 @@ def validate_file(data: bytes, filename: str, declared: str) -> tuple[str, str]:
 
 
 def scan(data: bytes) -> ScanResult:
+    started = time.monotonic()
+    result: ScanResult = "SCANNING"
+    try:
+        result = _scan(data)
+        return result
+    finally:
+        scanner_results.add(1, {"status": result})
+        scanner_duration.record(time.monotonic() - started, {"status": result})
+
+
+def _scan(data: bytes) -> ScanResult:
     if not settings.file_scan_host:
         return "SCANNING"
     try:

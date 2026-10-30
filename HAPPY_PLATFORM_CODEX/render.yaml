@@ -44,7 +44,7 @@ services:
       - key: OTEL_EXPORTER_OTLP_HEADERS
         sync: false
       - key: IDENTITY_ENCRYPTION_KEY
-        generateValue: true
+        sync: false
       - key: IDENTITY_LOOKUP_KEY
         generateValue: true
       - key: AUTH_SESSION_HOURS

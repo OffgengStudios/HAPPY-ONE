@@ -22,13 +22,36 @@ alert destinations and production approvers remain release inputs.
 6. Rehearse restoration against a non-production maintenance server account:
 
    ```bash
-   pnpm db:backup restore-test /secure/backup/happy-before-release.dump \
-     --admin-url "$HAPPY_RESTORE_ADMIN_URL"
+   # Supply RESTORE_ADMIN_URL through the private environment/secret manager.
+   pnpm db:backup restore-test /secure/backup/happy-before-release.dump
    ```
 
 The restore command creates only `happy_restore_test_<random>`, validates its
 migration/table evidence, and drops it in `finally`. Never supply the application
 database as the admin URL; only `postgres` or `template1` is accepted.
+Passwords are passed to PostgreSQL clients in the child process environment,
+never their command arguments. `--admin-url` is rejected; do not paste maintenance
+credentials into shell arguments. Failure output is deliberately sanitized.
+
+## Request and Document Limits
+
+`FILE_MAX_BYTES` is the per-document maximum (default 10 MiB), enforced by the
+shared PDF/DOCX validator for CVs, agreements/MOUs, JDs and supporting documents.
+The streamed body middleware applies separate explicit total budgets:
+
+| Request | Maximum body |
+|---|---|
+| Ordinary POST/PUT/PATCH JSON write | 512 KiB |
+| Participant CV; staff partnership document; staff JD; public participant intake | `FILE_MAX_BYTES + 256 KiB fields + 64 KiB multipart overhead` |
+| Public employer intake (at most five documents) | `5 * FILE_MAX_BYTES + 256 KiB fields + 64 KiB multipart overhead` |
+
+Each file still independently obeys FILE_MAX_BYTES. Public employer document
+count/metadata validation remains enforced in the intake API. Content-Length is
+not trusted: streamed/chunked bodies are stopped at the same budget. Unsupported
+types and malformed multipart fail safely. A permitted upload remains SCANNING
+when the real scanner is absent; increasing the request allowance never grants
+scan approval or download access. Align hosted proxy body limits with these
+documented application budgets and validate them in staging.
 
 ## Deployment
 

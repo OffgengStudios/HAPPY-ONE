@@ -1,0 +1,13 @@
+✔ HAMIS maps self-reported fields and never sends programme decisions (2.4514ms)
+✔ HAMIS validates minimum intake and Ghana phone (0.849ms)
+✔ employer client preserves requirements and vacancy terms (2.2822ms)
+✔ frontend active HTML references maintained local assets (8.6166ms)
+✔ portal active HTML references maintained local assets (3.5243ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 310.905

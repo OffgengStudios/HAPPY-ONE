@@ -56,6 +56,7 @@ export function ReportingWorkspace({ view, user }: { view: string; user: Me }) {
   const [dateTo, setDateTo] = useState(initialTo);
   const [selected, setSelected] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [retrying, setRetrying] = useState<string | null>(null);
   const period = `date_from=${dateFrom}&date_to=${dateTo}`;
   const section = view === "work" ? "dashboard" : view;
   const dashboard = useQuery({
@@ -68,6 +69,39 @@ export function ReportingWorkspace({ view, user }: { view: string; user: Me }) {
     queryFn: () => api<{ items: Kpi[] }>(`/reports/kpis?${period}`),
     enabled: ["performance", "reports"].includes(section),
   });
+  const [sensitiveExport, setSensitiveExport] = useState(false);
+  const [identityExport, setIdentityExport] = useState(false);
+  const [privacyAcknowledged, setPrivacyAcknowledged] = useState(false);
+  const [programmeBusy, setProgrammeBusy] = useState(false);
+  const programme = useQuery({
+    queryKey: ["reporting", "programme", dateFrom, dateTo],
+    queryFn: () =>
+      api<{
+        counts: Record<string, number>;
+        issues: {
+          participant_id: string;
+          participant_code: string;
+          issue: string;
+        }[];
+        notes: string[];
+      }>(`/reports/programme?${period}`),
+    enabled:
+      section === "reports" && user.permissions.includes("participant:view"),
+  });
+  async function exportProgramme() {
+    setProgrammeBusy(true);
+    setMessage("");
+    try {
+      await downloadGet(
+        `/reports/programme/export?${period}&include_sensitive=${sensitiveExport}&privacy_acknowledged=${privacyAcknowledged}&include_identity_numbers=${sensitiveExport && identityExport}`,
+      );
+      setMessage("Programme workbook downloaded.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Export failed.");
+    } finally {
+      setProgrammeBusy(false);
+    }
+  }
   const quality = useQuery({
     queryKey: ["reporting", "quality"],
     queryFn: () =>
@@ -145,6 +179,31 @@ export function ReportingWorkspace({ view, user }: { view: string; user: Me }) {
       setMessage(
         reason instanceof Error ? reason.message : "Export request failed.",
       );
+    }
+  }
+
+  async function retryExport(
+    job: ReportExportJob,
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    const values = new FormData(event.currentTarget);
+    setRetrying(job.id);
+    setMessage("");
+    try {
+      await api(`/reports/export-jobs/${job.id}/retry`, "POST", {
+        version: job.version,
+        reason: values.get("reason"),
+        privacy_acknowledged: values.get("privacy_acknowledged") === "on",
+      });
+      await exportJobs.refetch();
+      setMessage("Export retry requested.");
+    } catch (reason) {
+      setMessage(
+        reason instanceof Error ? reason.message : "Export retry failed.",
+      );
+    } finally {
+      setRetrying(null);
     }
   }
 
@@ -309,6 +368,111 @@ export function ReportingWorkspace({ view, user }: { view: string; user: Me }) {
         </div>
       )}
 
+      {section === "reports" &&
+        user.permissions.includes("participant:view") && (
+          <section className="my-6 rounded-lg border border-border p-5 space-y-4">
+            <h3 className="font-semibold">Programme lifecycle report</h3>
+            <p className="text-sm text-muted">
+              Onboarding, capacity building, employment and the separate
+              placement template. Ages use each event’s start date.
+            </p>
+            {programme.isFetching && (
+              <p role="status">Checking programme records…</p>
+            )}
+            {programme.error && <p role="alert">{programme.error.message}</p>}
+            <dl className="grid gap-3 sm:grid-cols-3">
+              {Object.entries(programme.data?.counts ?? {}).map(
+                ([key, value]) => (
+                  <div key={key}>
+                    <dt className="text-xs text-muted">
+                      {key.replaceAll("_", " ")}
+                    </dt>
+                    <dd className="text-xl font-semibold">{value}</dd>
+                  </div>
+                ),
+              )}
+            </dl>
+            {user.permissions.includes("report:sensitive_export") &&
+              user.permissions.includes("participant_sensitive:view") && (
+                <>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={sensitiveExport}
+                      onChange={(e) => setSensitiveExport(e.target.checked)}
+                    />
+                    Include restricted demographics and income
+                  </label>
+                  {sensitiveExport && (
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={identityExport}
+                        onChange={(e) => setIdentityExport(e.target.checked)}
+                      />
+                      Include full Ghana Card and Voter’s ID numbers in this
+                      restricted export
+                    </label>
+                  )}
+                  {sensitiveExport && (
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={privacyAcknowledged}
+                        onChange={(e) =>
+                          setPrivacyAcknowledged(e.target.checked)
+                        }
+                      />
+                      I acknowledge that this file contains sensitive
+                      participant data and will handle it securely.
+                    </label>
+                  )}
+                </>
+              )}
+            {user.permissions.includes("report:export") && (
+              <button
+                className="command primary"
+                disabled={
+                  programmeBusy || (sensitiveExport && !privacyAcknowledged)
+                }
+                onClick={() => void exportProgramme()}
+              >
+                Download programme workbook
+              </button>
+            )}
+            <details>
+              <summary className="cursor-pointer text-sm">
+                Report definitions and pending policy decisions
+              </summary>
+              <ul className="list-disc pl-5 text-sm space-y-2">
+                {programme.data?.notes.map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+              </ul>
+            </details>
+            <h4 className="text-sm font-semibold">Data quality corrections</h4>
+            {programme.data?.issues.map((issue, index) => (
+              <div key={index} className="border-t border-border py-2 text-sm">
+                <button
+                  className="text-primary underline"
+                  onClick={() =>
+                    window.dispatchEvent(
+                      new CustomEvent("happy:navigate", {
+                        detail: {
+                          view: "participants",
+                          id: issue.participant_id,
+                        },
+                      }),
+                    )
+                  }
+                >
+                  {issue.participant_code}
+                </button>
+                : {issue.issue}
+              </div>
+            ))}
+          </section>
+        )}
       {section === "reports" && (
         <div className="space-y-8">
           <section>
@@ -373,6 +537,43 @@ export function ReportingWorkspace({ view, user }: { view: string; user: Me }) {
                       </span>
                     )}
                   </span>
+                  {job.status === "FAILED" &&
+                    user.permissions.includes("report:export") && (
+                      <form
+                        onSubmit={(event) => void retryExport(job, event)}
+                        className="flex flex-wrap items-end gap-2"
+                      >
+                        <label className="text-xs">
+                          Retry reason
+                          <input
+                            className="field block"
+                            name="reason"
+                            required
+                            maxLength={5000}
+                          />
+                        </label>
+                        {job.include_sensitive && (
+                          <label className="text-xs">
+                            <input
+                              type="checkbox"
+                              name="privacy_acknowledged"
+                              required
+                            />{" "}
+                            I acknowledge this export contains sensitive
+                            information.
+                          </label>
+                        )}
+                        <button
+                          className="secondary-button"
+                          disabled={retrying === job.id}
+                          type="submit"
+                        >
+                          {retrying === job.id
+                            ? "Requesting retry…"
+                            : "Retry export"}
+                        </button>
+                      </form>
+                    )}
                   {job.status === "SUCCEEDED" && (
                     <button
                       className="icon-button"

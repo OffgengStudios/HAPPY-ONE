@@ -1,6 +1,6 @@
 import os
 from contextlib import nullcontext
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -361,6 +361,77 @@ def test_unapproved_kpis_are_explicitly_unavailable(db: Session) -> None:
         assert metrics[code]["value"] is None
         response = client.get(f"/api/v1/reports/kpis/{code}/drilldown?{PERIOD}")
         assert response.status_code == 422
+
+
+def test_expired_final_report_lease_is_terminal_and_retry_is_controlled(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, _ = login(db, "MANAGEMENT")
+    created = client.post(
+        "/api/v1/reports/export-jobs",
+        json={"kpi_code": "KPI-SUP-001", "date_from": "2026-01-01", "date_to": "2026-12-31"},
+    ).json()
+    row = db.get(ReportExportJob, created["id"])
+    row.status = "RUNNING"
+    row.attempt_count = settings.background_job_max_attempts
+    row.lease_owner = "dead-final-worker"
+    row.lease_expires_at = datetime.now(UTC) - timedelta(seconds=1)
+    db.commit()
+    reporting_worker.claim(db)
+    db.refresh(row)
+    assert row.status == "FAILED"
+    assert row.error_code == "RETRY_LIMIT_EXCEEDED" and row.completed_at
+    assert row.lease_owner is None and row.lease_expires_at is None
+    assert db.scalar(
+        select(AuditEvent).where(
+            AuditEvent.action == "report.export_failed", AuditEvent.entity_id == row.id
+        )
+    )
+    version = row.version
+    retried = client.post(
+        f"/api/v1/reports/export-jobs/{row.id}/retry",
+        json={"version": version, "reason": "Operator verified dependency recovery"},
+    )
+    assert retried.status_code == 202, retried.text
+    assert retried.json()["status"] == "PENDING" and row.attempt_count == 0
+    assert (
+        client.post(
+            f"/api/v1/reports/export-jobs/{row.id}/retry",
+            json={"version": version, "reason": "Duplicate retry"},
+        ).status_code
+        == 409
+    )
+    assert db.scalar(
+        select(AuditEvent).where(
+            AuditEvent.action == "report.export_retried", AuditEvent.entity_id == row.id
+        )
+    )
+
+
+def test_live_final_report_lease_cannot_be_reconciled_or_retried(db: Session) -> None:
+    client, user = login(db, "MANAGEMENT")
+    row = ReportExportJob(
+        requested_by=user.id,
+        kpi_code="KPI-SUP-001",
+        period_start=date(2026, 1, 1),
+        period_end=date(2026, 12, 31),
+        status="RUNNING",
+        attempt_count=settings.background_job_max_attempts,
+        lease_owner="live-worker",
+        lease_expires_at=datetime.now(UTC) + timedelta(minutes=5),
+    )
+    db.add(row)
+    db.commit()
+    assert reporting_worker.claim(db) is None
+    db.refresh(row)
+    assert row.status == "RUNNING" and row.lease_owner == "live-worker"
+    path = f"/api/v1/reports/export-jobs/{row.id}/retry"
+    values = {"version": row.version, "reason": "Attempt premature retry"}
+    assert client.post(path, json=values).status_code == 409
+    other, _ = login(db, "MANAGEMENT")
+    assert other.post(path, json=values).status_code == 404
+    marketing, _ = login(db, "MARKETING")
+    assert marketing.post(path, json=values).status_code == 403
 
 
 def test_reporting_is_server_authorized_and_period_is_bounded(db: Session) -> None:

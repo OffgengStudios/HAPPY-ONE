@@ -3,7 +3,7 @@ from typing import Literal
 from sqlalchemy import CheckConstraint, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-SourceSystem = Literal["INTERNAL", "HAMIS", "EMPLOYER_PORTAL", "API"]
+SourceSystem = Literal["INTERNAL", "HAMIS", "EMPLOYER_PORTAL", "API", "UNIJAY_FASHION"]
 CreatedVia = Literal["STAFF", "PARTICIPANT", "EMPLOYER", "INTEGRATION", "SYSTEM"]
 
 
@@ -11,7 +11,7 @@ class Provenance:
     source_system: Mapped[str] = mapped_column(
         String(30),
         CheckConstraint(
-            "source_system IN ('INTERNAL','HAMIS','EMPLOYER_PORTAL','API')",
+            "source_system IN ('INTERNAL','HAMIS','EMPLOYER_PORTAL','API','UNIJAY_FASHION')",
             name="ck_source_system",
         ),
         default="INTERNAL",

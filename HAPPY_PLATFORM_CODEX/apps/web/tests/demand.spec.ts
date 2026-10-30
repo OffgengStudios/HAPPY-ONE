@@ -50,43 +50,24 @@ async function vacancyStatus(page: Page, target: string) {
   await save(page, "Change vacancy status");
 }
 
-test("Demand staff converts an Employer Portal submission", async ({
+test("Demand entry is internal and legacy employer routes stay unavailable", async ({
   page,
-}, info) => {
+}) => {
   await login(page);
-  await navigate(page, "Employer Submissions");
   await expect(
-    page.getByRole("heading", { name: "Submission inbox", exact: true }),
-  ).toBeVisible();
-
-  const employerName = `Portal Browser Employer ${info.project.name}`;
-  await page.getByRole("button", { name: employerName, exact: false }).click();
-  const dialog = page.getByRole("dialog", {
-    name: "Employer submission",
-    exact: true,
-  });
-  await expect(
-    dialog.getByText("Portal Hiring Lead", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    dialog.getByText(`Portal Field Officer ${info.project.name}`, {
-      exact: true,
-    }),
-  ).toBeVisible();
-  await dialog
-    .getByLabel("Review reason", { exact: true })
-    .fill("Verified synthetic portal submission");
-  await dialog.getByRole("button", { name: "Convert", exact: true }).click();
-  await expect(dialog).toHaveCount(0);
-
+    page.getByRole("button", { name: "Employer Submissions", exact: true }),
+  ).toHaveCount(0);
   await navigate(page, "Employers");
   await expect(
-    page.getByRole("heading", { name: "Employers", exact: true }),
+    page.getByRole("button", { name: "New employer", exact: true }),
   ).toBeVisible();
-  await page.getByLabel("Search employers", { exact: true }).fill(employerName);
-  await expect(
-    page.getByRole("button", { name: employerName, exact: false }),
-  ).toBeVisible();
+  for (const route of [
+    "/api/v1/employer-intake/config",
+    "/api/v1/integrations/employer-portal/submissions",
+  ]) {
+    const response = await page.request.get(route);
+    expect(response.status()).toBe(404);
+  }
 });
 
 test("Demand staff completes an employer-to-vacancy workflow", async ({

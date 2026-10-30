@@ -1,0 +1,14 @@
+{
+  "access_log_privacy": {
+    "search_marker_logged": true,
+    "oidc_code_marker_logged": true
+  },
+  "invalid_encryption_key": {
+    "production_settings_accept_invalid_key": true,
+    "fernet_rejects_key": true
+  },
+  "database_outage": {
+    "liveness_status": 200,
+    "readiness_result": "client timed out after 15 seconds; default connection timeout not bounded by application"
+  }
+}

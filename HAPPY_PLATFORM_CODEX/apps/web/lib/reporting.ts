@@ -41,10 +41,12 @@ export type DrilldownRow = Record<string, string | number | boolean | null>;
 
 export type ReportExportJob = {
   id: string;
+  version: number;
   kpi_code: string;
   period_start: string;
   period_end: string;
   status: "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED";
+  include_sensitive: boolean;
   row_count: number | null;
   error_message: string | null;
   created_at: string;

@@ -5,10 +5,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import logging
 import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import urllib.request
 from datetime import UTC, datetime
@@ -17,11 +19,13 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import psycopg
+from botocore.exceptions import BotoCoreError, ClientError
 from psycopg import sql
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import URL, make_url
 
 from app.core.config import PROJECT_ROOT, settings
+from app.core.operational_health import persist_state
 from app.core.process import creation_flags
 from app.db.local import find_binary_directory
 from app.storage.s3 import get_storage_client
@@ -31,6 +35,7 @@ if TYPE_CHECKING:
 
 BACKUP_ROOT = PROJECT_ROOT / ".local" / "backups"
 RESTORE_DATABASE = re.compile(r"^happy_restore_test_[0-9a-f]{32}$")
+logger = logging.getLogger("happy.backup")
 
 
 def alert(event: str, status: str, details: dict[str, object]) -> None:
@@ -51,6 +56,8 @@ def postgres_url(value: str) -> URL:
     url = make_url(value)
     if url.get_backend_name() != "postgresql" or not url.database:
         raise ValueError("A PostgreSQL database URL is required.")
+    if any(key.casefold() == "password" for key in url.query):
+        raise ValueError("Use the URL password component, not a password query parameter.")
     return url.set(drivername="postgresql")
 
 
@@ -63,14 +70,48 @@ def executable(name: str) -> str:
     return str(find_binary_directory() / f"{name}{suffix}")
 
 
-def run(command: list[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        command,
-        check=True,
-        capture_output=True,
-        text=True,
-        creationflags=creation_flags(),
-    )
+def run(command: list[str], *, database: URL | None = None) -> subprocess.CompletedProcess[str]:
+    environment = os.environ.copy()
+    if database is not None:
+        database = postgres_url(database.render_as_string(hide_password=False))
+        # libpq reads this child-only credential. Never render it into argv or mutate
+        # the worker's shared environment. An absent URL password must not inherit
+        # an unrelated connection's PGPASSWORD (PGPASSFILE remains supported).
+        environment.pop("PGPASSWORD", None)
+        if database.password is not None:
+            environment["PGPASSWORD"] = database.password
+        connection = URL.create(
+            database.drivername,
+            username=database.username,
+            host=database.host,
+            port=database.port,
+            database=database.database,
+            query=database.query,
+        )
+        command = [
+            *command,
+            "--dbname",
+            connection.render_as_string(hide_password=False),
+        ]
+    result = None
+    try:
+        result = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            env=environment,
+            creationflags=creation_flags(),
+        )
+    except OSError:
+        pass
+    # Driver output is untrusted and may contain credentials. Do not attach it,
+    # the command, or a chained subprocess exception to operational failures.
+    if result is None:
+        raise RuntimeError("PostgreSQL backup command could not start.")
+    if result.returncode:
+        raise RuntimeError(f"PostgreSQL backup command failed (exit {result.returncode}).")
+    return result
 
 
 def checksum(path: Path) -> str:
@@ -95,8 +136,8 @@ def create_backup(output: Path | None = None) -> Path:
             "--no-privileges",
             "--file",
             str(archive),
-            source.render_as_string(hide_password=False),
-        ]
+        ],
+        database=source,
     )
     manifest = {
         "format": "postgresql-custom",
@@ -117,6 +158,8 @@ def verify_backup(archive: Path) -> dict[str, object]:
     if not archive.is_file() or not manifest_path.is_file():
         raise ValueError("Backup archive and checksum manifest are required.")
     manifest: dict[str, object] = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if not isinstance(manifest, dict):
+        raise ValueError("Backup manifest must be a JSON object.")
     if manifest.get("sha256") != checksum(archive):
         raise ValueError("Backup checksum does not match its manifest.")
     catalogue = run([executable("pg_restore"), "--list", str(archive)]).stdout
@@ -143,10 +186,9 @@ def restore_test(archive: Path, admin_url: str) -> str:
                 "--exit-on-error",
                 "--no-owner",
                 "--no-privileges",
-                "--dbname",
-                target.render_as_string(hide_password=False),
                 str(archive.resolve()),
-            ]
+            ],
+            database=target,
         )
         engine = create_engine(target.set(drivername="postgresql+psycopg"))
         try:
@@ -219,43 +261,90 @@ def restore_latest() -> str:
     if not admin_url:
         raise ValueError("RESTORE_ADMIN_URL is required for scheduled restore exercises.")
     client = get_storage_client()
-    response = client.list_objects_v2(
-        Bucket=settings.backup_s3_bucket, Prefix=settings.backup_s3_prefix.strip("/") + "/"
+    objects = {
+        item["Key"]: item["LastModified"]
+        for page in client.get_paginator("list_objects_v2").paginate(
+            Bucket=settings.backup_s3_bucket, Prefix=settings.backup_s3_prefix.strip("/") + "/"
+        )
+        for item in page.get("Contents", [])
+        if item["Key"].endswith((".dump", ".dump.json"))
+    }
+    candidates = {key.removesuffix(".json") for key in objects}
+    earliest = datetime.min.replace(tzinfo=UTC)
+    ordered = sorted(
+        candidates,
+        key=lambda key: max(objects.get(key, earliest), objects.get(key + ".json", earliest)),
+        reverse=True,
     )
-    archives = [item for item in response.get("Contents", []) if item["Key"].endswith(".dump")]
-    if not archives:
-        raise ValueError("No provider backup is available for restore testing.")
-    latest = max(archives, key=lambda item: item["LastModified"])["Key"]
+    skipped = 0
     with tempfile.TemporaryDirectory(prefix="happy-restore-") as directory:
-        archive = Path(directory) / Path(latest).name
-        client.download_file(settings.backup_s3_bucket, latest, str(archive))
-        client.download_file(settings.backup_s3_bucket, latest + ".json", str(archive) + ".json")
-        revision = restore_test(archive, admin_url)
-    alert("database_restore_exercise", "success", {"key": latest, "revision": revision})
-    return revision
+        for index, key in enumerate(ordered):
+            if key not in objects or key + ".json" not in objects:
+                skipped += 1
+                continue
+            archive = Path(directory) / f"candidate-{index}.dump"
+            try:
+                client.download_file(settings.backup_s3_bucket, key, str(archive))
+                client.download_file(
+                    settings.backup_s3_bucket, key + ".json", str(archive) + ".json"
+                )
+                manifest = verify_backup(archive)
+                created = manifest.get("created_at")
+                timestamp = datetime.fromisoformat(str(created)) if created else objects[key]
+                if timestamp.tzinfo is None or timestamp > datetime.now(UTC):
+                    raise ValueError("Backup creation time is invalid.")
+                age = max(0.0, (datetime.now(UTC) - timestamp).total_seconds())
+            except (BotoCoreError, ClientError, OSError, ValueError, RuntimeError):
+                # Candidate corruption/partial upload may permit an older verified
+                # recovery point. Never log provider exceptions or credential inputs.
+                skipped += 1
+                continue
+            selection = {
+                "key": key,
+                "selected_backup_age_seconds": round(age, 3),
+                "skipped_recovery_points": skipped,
+                "rpo_met": age <= 3600,
+            }
+            if skipped or age > 2700:
+                logger.warning("restore_recovery_point_selection %s", json.dumps(selection))
+                alert("database_restore_selection", "warning", selection)
+            else:
+                logger.info("restore_recovery_point_selection %s", json.dumps(selection))
+            # An actual restore failure is not candidate-discovery fallback: surface
+            # it to the operator instead of masking an infrastructure/schema failure.
+            revision = restore_test(archive, admin_url)
+            alert("database_restore_exercise", "success", {**selection, "revision": revision})
+            return revision
+    raise ValueError("No complete checksum-verified backup is available for restore testing.")
 
 
-def main() -> None:
+def execute() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "action", choices=["create", "verify", "restore-test", "scheduled", "restore-latest"]
     )
     parser.add_argument("archive", nargs="?", type=Path)
-    parser.add_argument("--admin-url", default=os.environ.get("HAPPY_RESTORE_ADMIN_URL", ""))
+    parser.add_argument("--admin-url", help=argparse.SUPPRESS)
     arguments = parser.parse_args()
+    if arguments.admin_url:
+        raise ValueError("Use RESTORE_ADMIN_URL in the environment, not --admin-url.")
     if arguments.action == "scheduled":
         try:
             result = scheduled_backup()
+            persist_state("BACKUP", succeeded=True)
             print(f"Provider backup uploaded: {result['key']}")
         except Exception as error:
+            persist_state("BACKUP", succeeded=False)
             alert("database_backup", "failure", {"error": type(error).__name__})
             raise
         return
     if arguments.action == "restore-latest":
         try:
             revision = restore_latest()
+            persist_state("RESTORE", succeeded=True)
             print(f"Provider restore exercise passed at migration {revision}.")
         except Exception as error:
+            persist_state("RESTORE", succeeded=False)
             alert("database_restore_exercise", "failure", {"error": type(error).__name__})
             raise
         return
@@ -269,10 +358,21 @@ def main() -> None:
         manifest = verify_backup(arguments.archive)
         print(f"Backup verified: {manifest['sha256']}")
         return
-    if not arguments.admin_url:
-        parser.error("restore-test requires --admin-url or HAPPY_RESTORE_ADMIN_URL")
-    revision = restore_test(arguments.archive, arguments.admin_url)
+    admin_url = (
+        os.environ.get("HAPPY_RESTORE_ADMIN_URL") or settings.restore_admin_url.get_secret_value()
+    )
+    if not admin_url:
+        parser.error("restore-test requires RESTORE_ADMIN_URL in the private environment")
+    revision = restore_test(arguments.archive, admin_url)
     print(f"Isolated restore test passed at migration {revision}.")
+
+
+def main() -> None:
+    try:
+        execute()
+    except Exception as error:
+        print(f"Backup/restore operation failed ({type(error).__name__}).", file=sys.stderr)
+        raise SystemExit(1) from None
 
 
 if __name__ == "__main__":

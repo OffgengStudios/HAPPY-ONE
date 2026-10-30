@@ -36,7 +36,6 @@ def claim(db: Session) -> UUID | None:
                 ReportExportJob.lease_expires_at.is_(None),
                 ReportExportJob.lease_expires_at < current,
             ),
-            ReportExportJob.attempt_count < settings.background_job_max_attempts,
             ReportExportJob.archived_at.is_(None),
         )
         .order_by(ReportExportJob.created_at, ReportExportJob.id)
@@ -44,7 +43,28 @@ def claim(db: Session) -> UUID | None:
     )
     if not row:
         return None
+    if row.attempt_count >= settings.background_job_max_attempts:
+        row.status = "FAILED"
+        row.error_code = "RETRY_LIMIT_EXCEEDED"
+        row.error_message = "The final worker lease expired. Review the failure before retrying."
+        row.completed_at = current
+        row.lease_owner = None
+        row.lease_expires_at = None
+        row.next_attempt_at = None
+        row.version += 1
+        audit(
+            db,
+            "report.export_failed",
+            AuditActor("SYSTEM"),
+            "report_export_job",
+            row.id,
+            result="FAILURE",
+            changes={"error_code": row.error_code, "attempt_count": row.attempt_count},
+        )
+        db.commit()
+        return row.id
     row.status = "RUNNING"
+    row.version += 1
     row.attempt_count += 1
     row.started_at = row.started_at or current
     row.lease_owner = WORKER_ID
@@ -55,8 +75,14 @@ def claim(db: Session) -> UUID | None:
 
 
 def process(db: Session, identifier: UUID) -> None:
-    row = db.get(ReportExportJob, identifier)
-    if not row or row.status != "RUNNING" or row.lease_owner != WORKER_ID:
+    row = db.get(ReportExportJob, identifier, with_for_update=True, populate_existing=True)
+    if (
+        not row
+        or row.status != "RUNNING"
+        or row.lease_owner != WORKER_ID
+        or not row.lease_expires_at
+        or row.lease_expires_at <= _now()
+    ):
         return
     try:
         values = data.Period(date_from=row.period_start, date_to=row.period_end)
@@ -72,6 +98,7 @@ def process(db: Session, identifier: UUID) -> None:
         row.storage_key = key
         row.row_count = len(rows)
         row.status = "SUCCEEDED"
+        row.version += 1
         row.completed_at = _now()
         row.error_code = None
         row.error_message = None
@@ -88,9 +115,10 @@ def process(db: Session, identifier: UUID) -> None:
         db.commit()
     except Exception:
         db.rollback()
-        row = db.get(ReportExportJob, identifier)
-        if not row:
+        row = db.get(ReportExportJob, identifier, with_for_update=True, populate_existing=True)
+        if not row or row.status != "RUNNING" or row.lease_owner != WORKER_ID:
             return
+        row.version += 1
         row.error_code = "EXPORT_GENERATION_FAILED"
         row.error_message = "The report export could not be generated."
         row.lease_owner = None

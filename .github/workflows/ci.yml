@@ -6,9 +6,15 @@ on:
     branches:
       - main
       - development
+      - feature/unijay-production-consolidation
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+env:
+  # Reviewed immutable collector revision; part of the versioned release inputs.
+  UNIJAY_RELEASE_SHA: "5496b70d409370efa9d917f6c474768635ce3bc8"
 
 jobs:
   cv-parser:
@@ -18,6 +24,8 @@ jobs:
         working-directory: CV-Parser-main/cv_system_output
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -56,9 +64,12 @@ jobs:
       S3_BUCKET: happy-test-private
       S3_ACCESS_KEY_ID: happy_local
       S3_SECRET_ACCESS_KEY: happy_local_storage_password
+      UNIJAY_REPOSITORY: ${{ github.workspace }}/UNIJAY
       PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/HAPPY_PLATFORM_CODEX/.local/browsers
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -70,6 +81,12 @@ jobs:
           node-version: "22"
           cache: pnpm
           cache-dependency-path: HAPPY_PLATFORM_CODEX/pnpm-lock.yaml
+      - uses: actions/checkout@v4
+        with:
+          repository: OffgengStudios/UNIJAY-FASHION-DATA-COLLECTION
+          ref: ${{ env.UNIJAY_RELEASE_SHA }}
+          path: UNIJAY
+          token: ${{ secrets.UNIJAY_REPO_READ_TOKEN || github.token }}
       - name: Install dependencies
         run: |
           python -m venv .venv
@@ -85,8 +102,8 @@ jobs:
         run: |
           python scripts/install_storage.py
           APP_ENV=development pnpm storage:local
-      - name: Public intake browser integration
-        run: python ../scripts/verify-intake.py
+      - name: UNIJAY desktop and mobile browser contracts
+        run: node ../integration/unijay-browser.cjs
       - name: Verify foundation
         run: pnpm verify
       - name: Upload browser evidence
@@ -96,32 +113,39 @@ jobs:
           name: foundation-browser-results
           path: |
             HAPPY_PLATFORM_CODEX/apps/web/test-results
-            HAPPY_PLATFORM_CODEX/.local/hamis-*.png
-            HAPPY_PLATFORM_CODEX/.local/employer-*.png
+            .local/unijay-consolidation/unijay-*.png
           retention-days: 7
 
-  hamis:
+  unijay:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          repository: OffgengStudios/UNIJAY-FASHION-DATA-COLLECTION
+          ref: ${{ env.UNIJAY_RELEASE_SHA }}
+          token: ${{ secrets.UNIJAY_REPO_READ_TOKEN || github.token }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node --check data-collection-tool/app.js
+      - run: node --test tests/*.test.cjs
+      - run: node build.mjs
+        env:
+          HAPPY_API_BASE_URL: https://happy-api.example.invalid
+
+  retained-legacy-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
       - run: node --check frontend/js/public-intake.js
       - run: node --check frontend/js/form-controls.js
-      - run: node --test integration/frontend.test.cjs
-      - run: node scripts/build-intake.mjs hamis
-
-  employer-intake:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
       - run: node --check portal/src/app.js
       - run: node --test integration/frontend.test.cjs
-      - run: node scripts/build-intake.mjs employer
 
   integration-contracts:
     runs-on: ubuntu-latest
@@ -130,6 +154,8 @@ jobs:
         working-directory: HAPPY_PLATFORM_CODEX
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -139,3 +165,40 @@ jobs:
       - run: python -m pip install -e apps/api[dev] -r ../CV-Parser-main/cv_system_output/requirements-happy.txt reportlab
       - run: python -m pytest apps/api/tests/test_intake_contract_unit.py apps/api/tests/test_cv_parser_adapter_unit.py -q
       - run: python -m pytest ../CV-Parser-main/tests-happy -q
+
+  release-manifest:
+    needs:
+      [
+        platform,
+        cv-parser,
+        unijay,
+        retained-legacy-contracts,
+        integration-contracts,
+      ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: sources/happy
+      - uses: actions/checkout@v4
+        with:
+          repository: OffgengStudios/UNIJAY-FASHION-DATA-COLLECTION
+          ref: ${{ env.UNIJAY_RELEASE_SHA }}
+          path: sources/unijay
+          token: ${{ secrets.UNIJAY_REPO_READ_TOKEN || github.token }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Record exact release identities after required checks
+        run: >-
+          python sources/happy/HAPPY_PLATFORM_CODEX/scripts/release_manifest.py
+          --unijay sources/unijay
+          --expected-unijay-sha "$UNIJAY_RELEASE_SHA"
+          --deployment render-production.yaml
+          --output "$RUNNER_TEMP/release-manifest.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-manifest
+          path: ${{ runner.temp }}/release-manifest.json
+          retention-days: 30

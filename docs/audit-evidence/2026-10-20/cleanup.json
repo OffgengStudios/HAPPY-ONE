@@ -1,0 +1,24 @@
+{
+  "audit_application_processes_stopped": 0,
+  "audit_objects_removed": 3,
+  "audit_bucket_removed": "happy-audit-d4d541a5",
+  "audit_storage_processes_stopped": 1,
+  "audit_databases_removed": [
+    "happy_audit_d4d541a5",
+    "happy_audit_prod_9c5eccf7",
+    "happy_audit_prod_b82b44cc",
+    "happy_audit_prod_ebff9e84"
+  ],
+  "audit_role_removed": "happy_audit_d4d541a5",
+  "private_audit_files_removed": [
+    "private-state.json",
+    "native-private.json",
+    "probe-fixture-private.json",
+    "bootstrap-password",
+    "audit-key.pem",
+    "synthetic-production.dump",
+    "full-workflow.dump"
+  ],
+  "original_postgres_preserved": true,
+  "original_storage_and_application_files_untouched": true
+}

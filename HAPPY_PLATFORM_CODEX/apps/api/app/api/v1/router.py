@@ -1,7 +1,9 @@
 from fastapi import APIRouter
 
+from app.core.config import settings
 from app.integrations.employer_portal.routes import router as employer_portal_router
 from app.integrations.hamis.routes import router as hamis_router
+from app.integrations.intake.routes import employer_router
 from app.integrations.intake.routes import router as intake_router
 from app.modules.cv_parser.routes import router as cv_parser_router
 from app.modules.demand.routes import router as demand_router
@@ -33,7 +35,9 @@ api_router.include_router(placement_router)
 api_router.include_router(reporting_router)
 api_router.include_router(training_router)
 api_router.include_router(work_router)
-api_router.include_router(hamis_router)
-api_router.include_router(employer_portal_router)
+if settings.enable_legacy_integrations:
+    api_router.include_router(hamis_router)
+    api_router.include_router(employer_portal_router)
+    api_router.include_router(employer_router)
 
 api_router.include_router(intake_router)

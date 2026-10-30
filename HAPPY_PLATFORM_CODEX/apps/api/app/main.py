@@ -6,10 +6,12 @@ from app.core.config import settings
 from app.core.errors import register_errors
 from app.core.middleware import RequestIdMiddleware, RequestSizeMiddleware
 from app.core.observability import configure_observability
+from app.core.private_telemetry import configure_private_logging
 from app.core.version import RELEASE_VERSION
 
 
 def create_app() -> FastAPI:
+    configure_private_logging()
     app = FastAPI(
         title=settings.app_name,
         version=RELEASE_VERSION,

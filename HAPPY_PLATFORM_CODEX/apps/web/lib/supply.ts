@@ -77,6 +77,8 @@ export const basicFields: Field[] = [
   { ...text("surname", "Surname", 100), required: true },
   text("other_names", "Other names", 100),
   text("implementing_partner", "Implementing partner"),
+  { key: "onboarding_date", label: "Onboarding Date", type: "date" },
+  text("support_type", "Participant Type - Support", 60),
   {
     key: "duplicate_acknowledged",
     label: "Reviewed as a distinct participant",
@@ -161,7 +163,19 @@ export const onboardingState = select("to_status", "Onboarding status", [
 ]);
 export const frequencies = ["MONTHLY", "WEEKLY", "DAILY", "HOURLY", "OTHER"];
 export const sensitiveFields: Field[] = [
-  text("refugee_status", "Refugee status", 60),
+  {
+    ...select("income_status", "Income recording status", [
+      "KNOWN",
+      "UNKNOWN",
+      "NOT_RECORDED",
+      "NOT_APPLICABLE",
+    ]),
+    required: false,
+  },
+  {
+    ...select("refugee_status", "Refugee Status", ["YES", "NO", "UNKNOWN"]),
+    required: false,
+  },
   text("displacement_status", "Displacement status", 60),
   {
     key: "displacement_reason",
@@ -171,12 +185,20 @@ export const sensitiveFields: Field[] = [
   },
   text("original_community", "Original community"),
   text("host_community", "Host community"),
-  text("disability_status", "Disability status", 60),
+  {
+    ...select("disability_status", "Disability Status", [
+      "YES",
+      "NO",
+      "UNKNOWN",
+    ]),
+    required: false,
+  },
   {
     key: "disability_specify",
     label: "Disability details",
     type: "textarea",
     max: 5000,
+    showWhen: { key: "disability_status", value: "YES" },
   },
   {
     key: "current_income_amount",
@@ -193,7 +215,10 @@ export const sensitiveFields: Field[] = [
 export const demographicFields: Field[] = [
   { key: "date_of_birth", label: "Date of birth", type: "date" },
   text("sex", "Sex", 60),
-  text("nationality", "Nationality", 60),
+  {
+    ...text("nationality", "Nationality (If Yes to Refugee)", 60),
+    showWhen: { key: "refugee_status", value: "YES" },
+  },
 ];
 export const consentFields: Field[] = [
   select("consent_type", "Consent type", [

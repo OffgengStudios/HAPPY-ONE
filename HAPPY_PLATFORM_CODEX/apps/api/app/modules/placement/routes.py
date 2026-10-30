@@ -139,6 +139,40 @@ def start(
     )
 
 
+@router.patch("/placements/{identifier}/programme-details")
+def programme_details(
+    identifier: UUID,
+    values: data.PlacementDetailsWrite,
+    db: Database,
+    actor: Edit,
+    request: Request,
+) -> dict[str, Any]:
+    from app.core.errors import ApiError
+
+    row = s.locked(db, identifier, values.version)
+    if row.confirmed_at and "placement:correct_confirmation" not in actor.permissions:
+        raise ApiError(
+            403, "PERMISSION_DENIED", "Confirmed placement corrections require elevated permission."
+        )
+    for key, value in values.model_dump(exclude={"version", "reason"}).items():
+        setattr(row, key, value)
+    from app.modules.iam.service import audit
+
+    audit(
+        db,
+        "placement.updated",
+        actor.audit_actor,
+        "PLACEMENT",
+        row.id,
+        request,
+        changes={"reason": values.reason, "section": "programme_details"},
+    )
+    changed(row, actor.user.id)
+    db.commit()
+    db.refresh(row)
+    return s.placement_view(db, row, actor.permissions)
+
+
 @router.post("/placements/{identifier}/start-outcome")
 def start_outcome(
     identifier: UUID,

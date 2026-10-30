@@ -50,6 +50,8 @@ class Contact(Input):
 
 
 class Intake(Basic, Contact):
+    onboarding_date: date | None = None
+    support_type: Code | None = None
     assigned_user_id: UUID | None = None
     source_type: Code | None = None
     source_detail: Annotated[str, Field(min_length=1, max_length=200)] | None = None
@@ -72,6 +74,8 @@ class Assignment(Version):
 
 
 class BasicWrite(Basic, Version):
+    onboarding_date: date | None = None
+    support_type: Code | None = None
     duplicate_acknowledged: bool = False
     implementing_partner: Short | None = None
 
@@ -94,6 +98,7 @@ class Demographics(Version):
 
 
 class SensitiveWrite(Version):
+    income_status: Literal["KNOWN", "UNKNOWN", "NOT_RECORDED", "NOT_APPLICABLE"] | None = None
     refugee_status: Code | None = None
     displacement_status: Code | None = None
     displacement_reason: Text | None = None
@@ -106,6 +111,13 @@ class SensitiveWrite(Version):
 
     @model_validator(mode="after")
     def income(self) -> Self:
+        if (
+            self.income_status in {"UNKNOWN", "NOT_RECORDED", "NOT_APPLICABLE"}
+            and self.current_income_amount is not None
+        ):
+            raise ValueError("A non-amount income status cannot also contain an amount.")
+        if self.income_status == "KNOWN" and self.current_income_amount is None:
+            raise ValueError("Known income requires an amount, including zero.")
         if self.current_income_amount is not None and not self.income_frequency:
             raise ValueError("Income needs a frequency.")
         return self
@@ -184,8 +196,16 @@ class EmploymentWrite(Version):
     work_community: Short | None = None
 
 
+TrainingInterest = Literal["CAREER_READINESS", "SOFT_SKILLS"]
+TRAINING_INTEREST_LABELS = {
+    "CAREER_READINESS": "Career Readiness",
+    "SOFT_SKILLS": "Soft skills",
+}
+
+
 class TrainingWrite(Version):
     training_summary: Text | None = None
+    training_interests: list[TrainingInterest] | None = Field(default=None, max_length=2)
 
 
 class ReviewWrite(Version):

@@ -18,11 +18,13 @@ from app.modules.iam.actors import AuthorizationContext, staff_user_id
 from app.modules.iam.models import now
 from app.modules.iam.service import audit
 from app.modules.supply import schemas as s
+from app.modules.supply.ages import event_age, programme_today
 from app.modules.supply.models import (
     Consent,
     Document,
     Education,
     Experience,
+    OnboardingRevision,
     Participant,
     Person,
     SensitiveProfile,
@@ -49,6 +51,8 @@ PART_PUBLIC = (
     "person_id",
     "programme_code",
     "implementing_partner",
+    "onboarding_date",
+    "support_type",
     "source_type",
     "source_detail",
     "onboarding_status",
@@ -70,6 +74,7 @@ PART_PUBLIC = (
     "next_action",
     "next_action_due_at",
     "training_summary",
+    "training_interests",
     "completion_mode",
     "assisted_by",
     "completed_at",
@@ -119,8 +124,7 @@ def full_name(person: Person) -> str:
 def age(birth: date | None, today: date | None = None) -> int | None:
     if not birth:
         return None
-    today = today or now().date()
-    return today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day))
+    return event_age(birth, today or programme_today())
 
 
 def required_consent(db: Session, participant: Participant) -> bool:
@@ -141,7 +145,13 @@ def required_consent(db: Session, participant: Participant) -> bool:
     )
 
 
-def checklist(db: Session, row: Participant) -> dict[str, Any]:
+def checklist(
+    db: Session,
+    row: Participant,
+    *,
+    person: Person | None = None,
+    consent_active: bool | None = None,
+) -> dict[str, Any]:
     required = set(settings.supply_required_sections) | {"basic", "contact", "consent"}
     if not required <= set(s.SECTIONS):
         raise ApiError(
@@ -150,10 +160,17 @@ def checklist(db: Session, row: Participant) -> dict[str, Any]:
             "An administrator must correct the required onboarding sections.",
         )
     completed = set(row.completed_sections)
-    field_names = set(settings.supply_required_fields)
+    field_names = set(settings.supply_required_fields) | {"ghana_card"}
+    profile = db.scalar(select(SensitiveProfile).where(SensitiveProfile.participant_id == row.id))
+    if profile and str(profile.refugee_status).upper() == "YES":
+        field_names.add("nationality")
+    if profile and str(profile.disability_status).upper() == "YES":
+        field_names.add("disability_specify")
     person_fields = set(PERSON_PUBLIC) | {"date_of_birth", "sex", "nationality"}
     participant_fields = {
         "implementing_partner",
+        "onboarding_date",
+        "support_type",
         "employment_status",
         "current_occupation",
         "sector_code",
@@ -165,19 +182,25 @@ def checklist(db: Session, row: Participant) -> dict[str, Any]:
         "work_community",
         "training_summary",
     }
-    if not field_names <= person_fields | participant_fields | {"government_id"}:
+    if not field_names <= person_fields | participant_fields | {
+        "government_id",
+        "ghana_card",
+        "disability_specify",
+    }:
         raise ApiError(503, "ONBOARDING_POLICY_INVALID", "Correct the required onboarding fields.")
-    person = get_record(db, Person, row.person_id)
+    person = person or get_record(db, Person, row.person_id)
     missing_fields = sorted(
         name
         for name in field_names
         if not (
-            person.government_id_ciphertext
-            if name == "government_id"
+            (person.government_id_ciphertext if person.government_id_type == "GHANA_CARD" else None)
+            if name in {"government_id", "ghana_card"}
+            else profile.disability_specify
+            if name == "disability_specify" and profile
             else getattr(person if name in person_fields else row, name)
         )
     )
-    if required_consent(db, row):
+    if required_consent(db, row) if consent_active is None else consent_active:
         completed.add("consent")
     else:
         completed.discard("consent")
@@ -224,16 +247,24 @@ def assert_submission_eligible(db: Session, row: Participant) -> None:
         )
 
 
-def participant_view(db: Session, row: Participant) -> dict[str, Any]:
-    person = get_record(db, Person, row.person_id)
-    progress = checklist(db, row)
+def participant_view(
+    db: Session,
+    row: Participant,
+    *,
+    person: Person | None = None,
+    consent_active: bool | None = None,
+) -> dict[str, Any]:
+    person = person or get_record(db, Person, row.person_id)
+    if consent_active is None:
+        consent_active = required_consent(db, row)
+    progress = checklist(db, row, person=person, consent_active=consent_active)
     eligible = (
         not row.archived_at
         and row.onboarding_status == "COMPLETE"
         and not progress["missing_sections"]
         and not progress["missing_fields"]
         and progress["policy_configured"]
-        and required_consent(db, row)
+        and consent_active
     )
     return {
         **fields(person, PERSON_PUBLIC),
@@ -247,6 +278,35 @@ def participant_view(db: Session, row: Participant) -> dict[str, Any]:
         "archived_at": row.archived_at,
         "submission_eligible": eligible,
     }
+
+
+def participant_views(db: Session, rows: list[Participant]) -> list[dict[str, Any]]:
+    if not rows:
+        return []
+    people = {
+        person.id: person
+        for person in db.scalars(
+            select(Person).where(Person.id.in_({row.person_id for row in rows}))
+        )
+    }
+    consenting = (
+        set(
+            db.scalars(
+                select(Consent.participant_id).where(
+                    Consent.participant_id.in_({row.id for row in rows}),
+                    Consent.consent_type == "PROGRAMME",
+                    Consent.status == "ACTIVE",
+                    Consent.privacy_notice_version == settings.supply_privacy_notice_version,
+                )
+            )
+        )
+        if settings.supply_privacy_notice_version
+        else set()
+    )
+    return [
+        participant_view(db, row, person=people[row.person_id], consent_active=row.id in consenting)
+        for row in rows
+    ]
 
 
 def lock(db: Session, identifier: UUID, version: int) -> Participant:
@@ -380,6 +440,8 @@ def create(
         source_type=data.source_type,
         source_detail=data.source_detail,
         implementing_partner=data.implementing_partner,
+        onboarding_date=data.onboarding_date,
+        support_type=data.support_type,
         completed_sections=["basic", "contact"],
         created_by=staff_user_id(principal),
     )
@@ -439,6 +501,37 @@ def section_write(
         )
     person = get_record(db, Person, row.person_id, True)
     values = data.model_dump(exclude={"version", "duplicate_acknowledged"})
+    reference = values.get("onboarding_date", row.onboarding_date)
+    birth = values.get("date_of_birth", person.date_of_birth)
+    if reference and birth and reference < birth:
+        raise ApiError(422, "EVENT_BEFORE_BIRTH", "Onboarding date cannot precede date of birth.")
+    if section == "demographics" and birth:
+        from app.modules.placement.models import Placement
+        from app.modules.training.models import Training, TrainingAttendance
+
+        early_training = db.scalar(
+            select(Training.id)
+            .join(TrainingAttendance)
+            .where(TrainingAttendance.participant_id == row.id, Training.start_date < birth)
+        )
+        early_placement = db.scalar(
+            select(Placement.id).where(
+                Placement.participant_id == row.id, Placement.actual_start_date < birth
+            )
+        )
+        if early_training or early_placement:
+            raise ApiError(422, "EVENT_BEFORE_BIRTH", "Date of birth is after an existing event.")
+    if section in {"basic", "demographics"}:
+        db.add(
+            OnboardingRevision(
+                participant_id=row.id,
+                created_by=staff_user_id(principal),
+                previous_json={
+                    "onboarding_date": str(row.onboarding_date) if row.onboarding_date else None,
+                    "date_of_birth": str(person.date_of_birth) if person.date_of_birth else None,
+                },
+            )
+        )
     if section in {"basic", "contact"}:
         check_duplicate(
             db,
@@ -469,6 +562,8 @@ def section_write(
             setattr(row, key, value)
     elif section == "training":
         row.training_summary = values["training_summary"]
+        if values.get("training_interests") is not None:
+            row.training_interests = values["training_interests"]
     completed = set(row.completed_sections)
     if section != "review":
         completed.discard("review")
@@ -591,6 +686,19 @@ def complete(
         raise ApiError(
             422, "ONBOARDING_INCOMPLETE", "Complete the missing required onboarding sections."
         )
+    profile = db.scalar(select(SensitiveProfile).where(SensitiveProfile.participant_id == row.id))
+    if profile is None:
+        profile = SensitiveProfile(participant_id=row.id, created_by=staff_user_id(principal))
+        db.add(profile)
+    if profile.baseline_captured_at is None:
+        row.baseline_employment_status = row.employment_status
+        row.baseline_occupation = row.current_occupation
+        profile.baseline_income_amount = profile.current_income_amount
+        profile.baseline_income_frequency = profile.income_frequency
+        profile.baseline_income_status = profile.income_status or (
+            "KNOWN" if profile.current_income_amount is not None else "NOT_RECORDED"
+        )
+        profile.baseline_captured_at = now()
     row.onboarding_status = "COMPLETE"
     row.completion_mode = data.completion_mode
     row.assisted_by = staff_user_id(principal) if data.completion_mode == "STAFF_ASSISTED" else None
@@ -620,7 +728,29 @@ def sensitive_view(db: Session, row: Participant) -> dict[str, Any]:
         **fields(person, ("date_of_birth", "sex", "nationality", "government_id_type")),
         **(fields(profile, names) if profile else {k: None for k in names}),
         "age": age(person.date_of_birth),
-        "has_government_id": bool(person.government_id_ciphertext),
+        "current_age": age(person.date_of_birth),
+        "age_at_onboarding": event_age(person.date_of_birth, row.onboarding_date),
+        "onboarding_age_projected": bool(
+            row.onboarding_date and row.onboarding_date > programme_today()
+        ),
+        "age_reference_date": programme_today(),
+        "age_category": None,
+        "age_category_status": "PENDING_PROGRAMME_RULE",
+        "has_ghana_card": bool(
+            person.government_id_type == "GHANA_CARD" and person.government_id_ciphertext
+        ),
+        "has_voter_id": bool(person.voter_id_ciphertext),
+        "baseline_income_amount": profile.baseline_income_amount if profile else None,
+        "baseline_income_frequency": profile.baseline_income_frequency if profile else None,
+        "baseline_income_status": profile.baseline_income_status if profile else None,
+        "income_status": profile.income_status
+        or ("KNOWN" if profile.current_income_amount is not None else "NOT_RECORDED")
+        if profile
+        else "NOT_RECORDED",
+        "baseline_employment_status": row.baseline_employment_status,
+        "baseline_occupation": row.baseline_occupation,
+        "baseline_captured_at": profile.baseline_captured_at if profile else None,
+        "has_government_id": bool(person.government_id_ciphertext or person.voter_id_ciphertext),
         "version": row.version,
     }
 
@@ -639,7 +769,16 @@ def save_sensitive(
         profile = SensitiveProfile(participant_id=row.id, created_by=staff_user_id(principal))
         db.add(profile)
     values = data.model_dump(exclude={"version"})
+    values["income_status"] = data.income_status or (
+        "KNOWN" if data.current_income_amount is not None else "NOT_RECORDED"
+    )
     for key, value in values.items():
+        if (
+            key == "disability_specify"
+            and value is None
+            and str(data.disability_status).upper() != "YES"
+        ):
+            continue
         setattr(profile, key, value)
     if profile.version:
         changed(profile, staff_user_id(principal))
@@ -661,6 +800,8 @@ def save_identity(
     data: s.IdentityWrite,
     principal: AuthorizationContext,
     request: Request,
+    *,
+    commit: bool = True,
 ) -> None:
     raw = data.government_id.get_secret_value()
     fingerprint = identity_hash(data.government_id_type, raw)
@@ -674,7 +815,8 @@ def save_identity(
         ) from None
     if db.scalar(
         select(Person.id).where(
-            Person.government_id_hash == fingerprint, Person.id != row.person_id
+            or_(Person.government_id_hash == fingerprint, Person.voter_id_hash == fingerprint),
+            Person.id != row.person_id,
         )
     ):
         raise ApiError(
@@ -683,9 +825,13 @@ def save_identity(
             "An identity reference matches another record. Request authorized duplicate review.",
         )
     person = get_record(db, Person, row.person_id, True)
-    person.government_id_type = data.government_id_type
-    person.government_id_ciphertext = cipher.encrypt(raw.encode()).decode()
-    person.government_id_hash = fingerprint
+    if data.government_id_type == "VOTER_ID":
+        person.voter_id_ciphertext = cipher.encrypt(raw.encode()).decode()
+        person.voter_id_hash = fingerprint
+    else:
+        person.government_id_type = data.government_id_type
+        person.government_id_ciphertext = cipher.encrypt(raw.encode()).decode()
+        person.government_id_hash = fingerprint
     changed(person, staff_user_id(principal))
     changed(row, staff_user_id(principal))
     save(
@@ -695,4 +841,5 @@ def save_identity(
         request,
         "participant.updated",
         {"section": "identity", "fields": ["government_id"]},
+        commit=commit,
     )

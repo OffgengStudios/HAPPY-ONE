@@ -1,0 +1,28 @@
+{
+  "conclusion": "success",
+  "headSha": "15facc8272a8cd4329390a988ba0984cf5397452",
+  "jobs": [
+    {
+      "name": "integration-contracts",
+      "conclusion": "success"
+    },
+    {
+      "name": "platform",
+      "conclusion": "success"
+    },
+    {
+      "name": "employer-intake",
+      "conclusion": "success"
+    },
+    {
+      "name": "hamis",
+      "conclusion": "success"
+    },
+    {
+      "name": "cv-parser",
+      "conclusion": "success"
+    }
+  ],
+  "status": "completed",
+  "updatedAt": "2026-10-20T11:04:42Z"
+}

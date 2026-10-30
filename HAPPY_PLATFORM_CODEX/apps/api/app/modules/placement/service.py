@@ -21,7 +21,8 @@ from app.modules.placement.models import (
     Placement,
     PlacementHistory,
 )
-from app.modules.supply.models import Participant, Person
+from app.modules.supply.ages import event_age, programme_today
+from app.modules.supply.models import Document, Participant, Person
 from app.modules.supply.service import full_name
 
 
@@ -192,6 +193,11 @@ def placement_view(
                 "updated_at",
             )
         },
+        **{key: getattr(row, key) for key in data.PlacementDetails.model_fields},
+        "age_at_placement_start": event_age(person.date_of_birth, row.actual_start_date),
+        "placement_age_projected": bool(
+            row.actual_start_date and row.actual_start_date > programme_today()
+        ),
         "participant_name": full_name(person),
         "participant_code": participant.participant_code,
         "vacancy_title": vacancy.title,
@@ -202,6 +208,7 @@ def placement_view(
     }
     if permissions is not None and "participant_sensitive:view" not in permissions:
         result["salary_amount"] = None
+        result["age_at_placement_start"] = None
     return result
 
 
@@ -242,6 +249,7 @@ def create(
         payroll_frequency=values.payroll_frequency,
         payday_rule_json=values.payday_rule_json,
         expected_first_income_date=values.manual_first_income_date,
+        **values.model_dump(include=set(data.PlacementDetails.model_fields)),
         owner_id=values.owner_id or actor.user.id,
         created_by=actor.user.id,
         updated_by=actor.user.id,
@@ -269,7 +277,15 @@ def confirm_start(
     row = locked(db, identifier, values.version)
     if row.status != "START_PENDING":
         fail("INVALID_PLACEMENT_TRANSITION", "Only a pending start can be confirmed.", 422)
-    vacancy = get_record(db, Vacancy, row.vacancy_id)
+    participant = get_record(db, Participant, row.participant_id)
+    person = get_record(db, Person, participant.person_id)
+    if person.date_of_birth and values.actual_start_date < person.date_of_birth:
+        fail("EVENT_BEFORE_BIRTH", "Placement cannot start before date of birth.", 422)
+    if values.actual_start_date > programme_today():
+        fail("FUTURE_ACTUAL_START", "Use expected start for a future date.", 422)
+    # Serialize starts for different placements sharing one vacancy.
+    # Use Demand's employer → vacancy lock order before reading capacity.
+    vacancy = get_record(db, Vacancy, row.vacancy_id, lock=True)
     if (
         headcount(vacancy, db)["started"] >= vacancy.required_headcount
         and "vacancy:overfill_override" not in actor.permissions
@@ -339,6 +355,35 @@ def confirm_start(
     return row
 
 
+def validate_income_date(row: Placement, received: date) -> None:
+    if not row.actual_start_date:
+        fail("ACTUAL_START_REQUIRED", "Verify the actual start before confirming income.", 422)
+    assert row.actual_start_date is not None
+    if received < row.actual_start_date or received > programme_today():
+        fail(
+            "INVALID_FIRST_INCOME_DATE",
+            "Income must have been received between the actual start and today in Ghana.",
+            422,
+        )
+
+
+def validate_income_evidence(
+    db: Session, row: Placement, identifier: UUID | None, actor: Principal
+) -> None:
+    if identifier is None:
+        return
+    if not {"participant:view", "cv:view", "cv:download"} <= actor.permissions:
+        fail("PERMISSION_DENIED", "Document access is required to verify this evidence.", 403)
+    document = db.scalar(select(Document).where(Document.id == identifier).with_for_update())
+    if not document or document.archived_at or document.participant_id != row.participant_id:
+        fail("DOCUMENT_NOT_FOUND", "Participant evidence document not found.", 404)
+    assert document is not None
+    if document.scan_status != "AVAILABLE":
+        fail(
+            "EVIDENCE_NOT_AVAILABLE", "Income evidence must pass scanning before verification.", 422
+        )
+
+
 def confirm_income(
     db: Session,
     identifier: UUID,
@@ -351,17 +396,18 @@ def confirm_income(
         fail("NOT_FOUND", "Placement not found.", 404)
     assert row
     first = verification(db, row.id, lock=True)
+    validate_income_date(row, values.actual_income_received_date)
+    validate_income_evidence(db, row, values.evidence_document_id, actor)
     if (
         first.status == "CONFIRMED"
         and first.actual_income_received_date == values.actual_income_received_date
         and first.amount_received == values.amount_received
+        and first.evidence_document_id == values.evidence_document_id
     ):
         return row
     writable(first, values.version)
     if row.status != "AWAITING_FIRST_INCOME" or first.status == "CONFIRMED":
         fail("INVALID_PLACEMENT_TRANSITION", "First income is not awaiting confirmation.", 422)
-    if row.actual_start_date and values.actual_income_received_date < row.actual_start_date:
-        fail("INVALID_FIRST_INCOME_DATE", "Income cannot predate the actual start.", 422)
     first.status = "CONFIRMED"
     first.actual_income_received_date = values.actual_income_received_date
     first.amount_received = values.amount_received
@@ -479,6 +525,9 @@ def correct_confirmation(
                 "A received date is required to restore confirmation.",
                 422,
             )
+        assert values.actual_income_received_date is not None
+        validate_income_date(row, values.actual_income_received_date)
+        validate_income_evidence(db, row, first.evidence_document_id, actor)
         first.status = "CONFIRMED"
         first.actual_income_received_date = values.actual_income_received_date
         first.amount_received = values.amount_received

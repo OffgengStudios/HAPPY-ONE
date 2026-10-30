@@ -19,6 +19,7 @@ from app.modules.demand.models import (
     JobDescriptionVersion,
     Partnership,
     PartnershipDocument,
+    Vacancy,
     VacancyChange,
 )
 from app.modules.iam.actors import AuditActor
@@ -361,6 +362,75 @@ def test_partnership_history_and_private_document_versions(db, monkeypatch):
         storage.delete_object(Bucket=settings.s3_bucket, Key=document.storage_key)
     for document in db.scalars(select(JobDescriptionVersion)).all():
         storage.delete_object(Bucket=settings.s3_bucket, Key=document.storage_key)
+
+
+@pytest.mark.parametrize("kind", ["agreement", "job-description"])
+def test_large_private_staff_document_obeys_file_and_multipart_limits(db, monkeypatch, kind):
+    from pypdf.generic import DecodedStreamObject, NameObject
+
+    client, _ = login(db)
+    employer = create_employer(client)
+    if kind == "agreement":
+        parent = client.post(
+            f"/api/v1/organizations/{employer['id']}/partnership",
+            json={"partnership_type": "TRAINING", "start_date": "2027-01-01", "mou_required": True},
+        ).json()
+        path = f"/api/v1/partnerships/{parent['id']}/documents"
+        owner, document_model = Partnership, PartnershipDocument
+    else:
+        parent = create_vacancy(client, employer)
+        path = f"/api/v1/vacancies/{parent['id']}/job-descriptions"
+        owner, document_model = Vacancy, JobDescriptionVersion
+    writer = PdfWriter()
+    page = writer.add_blank_page(width=100, height=100)
+    stream = DecodedStreamObject()
+    stream.set_data(b" " * 1048576)
+    page[NameObject("/Contents")] = writer._add_object(stream)
+    output = io.BytesIO()
+    writer.write(output)
+    content = output.getvalue()
+    assert 1048576 < len(content) < settings.file_max_bytes
+    monkeypatch.setattr(settings, "file_scan_host", "")
+    try:
+        response = client.post(
+            path,
+            data={"version": parent["version"]},
+            files={"file": ("synthetic.pdf", content, supply_files.PDF)},
+        )
+        assert response.status_code == 201, response.text
+        assert response.json()["scan_status"] == "SCANNING"
+        version = db.get(owner, UUID(parent["id"])).version
+        monkeypatch.setattr(settings, "file_max_bytes", len(content))
+        exact_limit = client.post(
+            path,
+            data={"version": version},
+            files={"file": ("exact-limit.pdf", content, supply_files.PDF)},
+        )
+        assert exact_limit.status_code == 201, exact_limit.text
+        version = db.get(owner, UUID(parent["id"])).version
+        malformed = client.post(
+            path,
+            content=b"malformed multipart",
+            headers={"Content-Type": "multipart/form-data; boundary=missing"},
+        )
+        assert malformed.status_code in {400, 422}
+        assert "malformed multipart" not in malformed.text
+        monkeypatch.setattr(settings, "file_max_bytes", len(content) - 1)
+        oversized = client.post(
+            path,
+            data={"version": version},
+            files={"file": ("synthetic.pdf", content, supply_files.PDF)},
+        )
+        assert oversized.status_code == 413
+        invalid = client.post(
+            path,
+            data={"version": version},
+            files={"file": ("synthetic.exe", b"invalid", "application/octet-stream")},
+        )
+        assert invalid.status_code in {415, 422}
+    finally:
+        for document in db.scalars(select(document_model)):
+            get_storage_client().delete_object(Bucket=settings.s3_bucket, Key=document.storage_key)
 
 
 def test_vacancy_lifecycle_requirement_history_and_headcount(db):

@@ -99,6 +99,7 @@ def outcome_view(db: Session, row: Outcome, permissions: set[str]) -> dict[str, 
     if "participant_sensitive:view" not in permissions:
         result.pop("current_income_amount", None)
         result.pop("income_frequency", None)
+        result.pop("income_status", None)
     return result
 
 
@@ -213,7 +214,10 @@ def _validate_outcome(
 
 
 def _outcome_values(values: data.OutcomeFields) -> dict[str, Any]:
-    return {field: getattr(values, field) for field in OUTCOME_FIELDS}
+    return {
+        **values.model_dump(include=set(OUTCOME_FIELDS)),
+        "agriculture": values.agriculture.model_dump(mode="json"),
+    }
 
 
 def record_outcome(
@@ -221,6 +225,8 @@ def record_outcome(
 ) -> Outcome:
     placement = get_placement(db, values.placement_id)
     _validate_outcome(db, placement, values.as_of_date, values.follow_up_id)
+    if values.employment_start_date and values.employment_start_date != placement.actual_start_date:
+        fail("EMPLOYMENT_START_MISMATCH", "Use the linked placement start date.", 422)
     if values.follow_up_id and db.scalar(
         select(Outcome.id).where(Outcome.follow_up_id == values.follow_up_id)
     ):
@@ -274,6 +280,60 @@ def record_outcome(
     return row
 
 
+def validate_independent(db: Session, identifier: UUID, values: data.OutcomeFields) -> None:
+    participant = db.get(Participant, identifier)
+    if not participant or participant.archived_at:
+        fail("PARTICIPANT_NOT_FOUND", "Participant not found.", 404)
+    person = db.get(Person, participant.person_id)
+    assert person
+    if not values.employment_start_date:
+        fail("EMPLOYMENT_START_REQUIRED", "Record the genuine employment start date.", 422)
+    if (
+        values.as_of_date > now().date()
+        or values.employment_start_date > values.as_of_date
+        or (person.date_of_birth and values.employment_start_date < person.date_of_birth)
+    ):
+        fail(
+            "INVALID_EMPLOYMENT_DATES", "Check birth, employment start and observation dates.", 422
+        )
+
+
+def independent_outcome(
+    db: Session,
+    identifier: UUID,
+    values: data.IndependentOutcome,
+    actor: Principal,
+    request: Request,
+) -> Outcome:
+    validate_independent(db, identifier, values)
+    if (
+        values.current_income_amount is not None
+        and "participant_sensitive:edit" not in actor.permissions
+    ):
+        fail("PERMISSION_DENIED", "Sensitive income recording is not permitted.", 403)
+    row = Outcome(
+        participant_id=identifier,
+        verified_by=actor.user.id,
+        created_by=actor.user.id,
+        updated_by=actor.user.id,
+        **_outcome_values(values),
+    )
+    db.add(row)
+    db.flush()
+    # Verification notes belong in restricted outcome history, never audit logs.
+    db.add(
+        OutcomeRevision(
+            outcome_id=row.id,
+            previous_json={},
+            reason=values.verification_notes,
+            corrected_by=actor.user.id,
+        )
+    )
+    audit(db, "outcome.created", actor.audit_actor, "outcome", row.id, request)
+    db.commit()
+    return row
+
+
 def snapshot(row: Outcome) -> dict[str, Any]:
     def json_value(value: Any) -> Any:
         if isinstance(value, (date, datetime, Decimal, UUID)):
@@ -294,8 +354,19 @@ def correct_outcome(
     request: Request,
 ) -> Outcome:
     writable(row, values.version)
-    placement = get_placement(db, row.placement_id)
-    _validate_outcome(db, placement, values.as_of_date, row.follow_up_id)
+    preserved = {
+        field: getattr(row, field)
+        for field in ("employment_start_date", "employment_type", "employment_category", "job_type")
+        if field not in values.model_fields_set
+    }
+    if "agriculture" not in values.model_fields_set:
+        preserved["agriculture"] = data.Agriculture.model_validate(row.agriculture)
+    values = values.model_copy(update=preserved)
+    placement = get_placement(db, row.placement_id) if row.placement_id else None
+    if placement:
+        _validate_outcome(db, placement, values.as_of_date, row.follow_up_id)
+    else:
+        validate_independent(db, row.participant_id, values)
     if (
         values.current_income_amount is not None
         and "participant_sensitive:edit" not in actor.permissions
@@ -313,16 +384,17 @@ def correct_outcome(
         setattr(row, key, value)
     row.verified_by = actor.user.id
     changed(row, actor.user.id)
-    db.add(
-        EmploymentStatusHistory(
-            placement_id=placement.id,
-            status="WORKING" if row.currently_working else "ENDED",
-            effective_date=row.as_of_date,
-            source="MERL_CORRECTION",
-            verified_by=actor.user.id,
-            notes="Corrected M&E outcome " + str(row.id),
+    if placement:
+        db.add(
+            EmploymentStatusHistory(
+                placement_id=placement.id,
+                status="WORKING" if row.currently_working else "ENDED",
+                effective_date=row.as_of_date,
+                source="MERL_CORRECTION",
+                verified_by=actor.user.id,
+                notes="Corrected M&E outcome " + str(row.id),
+            )
         )
-    )
     audit(
         db,
         "outcome.updated",
@@ -384,7 +456,7 @@ def dashboard(db: Session) -> dict[str, Any]:
             )
             .label("rank"),
         )
-        .where(Outcome.archived_at.is_(None))
+        .where(Outcome.archived_at.is_(None), Outcome.placement_id.is_not(None))
         .subquery()
     )
     working = (

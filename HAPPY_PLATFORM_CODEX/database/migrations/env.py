@@ -4,6 +4,7 @@ from alembic import context
 from sqlalchemy import create_engine, pool
 
 from app.core.config import settings
+from app.db import operational as operational_models  # noqa: F401
 from app.db.base import Base
 from app.integrations.employer_portal import models as employer_portal_models  # noqa: F401
 from app.integrations.hamis import models as hamis_models  # noqa: F401

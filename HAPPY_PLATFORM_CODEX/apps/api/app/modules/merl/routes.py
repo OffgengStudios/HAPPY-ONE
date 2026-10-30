@@ -295,3 +295,37 @@ def template_update(
     )
     db.commit()
     return template_view(row)
+
+
+@router.post("/participants/{identifier}/employment-outcomes", status_code=201)
+def independent_outcome(
+    identifier: UUID,
+    values: data.IndependentOutcome,
+    db: Database,
+    actor: OutcomeEdit,
+    request: Request,
+) -> dict[str, Any]:
+    if "participant:view" not in actor.permissions:
+        raise ApiError(403, "PERMISSION_DENIED", "Participant access is required.")
+    return s.outcome_view(
+        db, s.independent_outcome(db, identifier, values, actor, request), actor.permissions
+    )
+
+
+@router.get("/participants/{identifier}/employment-outcomes")
+def participant_outcomes(
+    identifier: UUID, db: Database, actor: OutcomeRead, limit: Limit = 25, cursor: str | None = None
+) -> dict[str, Any]:
+    if "participant:view" not in actor.permissions:
+        raise ApiError(403, "PERMISSION_DENIED", "Participant access is required.")
+    page = page_query(
+        select(Outcome).where(Outcome.participant_id == identifier, Outcome.archived_at.is_(None)),
+        Outcome,
+        db,
+        limit,
+        cursor,
+    )
+    return {
+        "items": [s.outcome_view(db, row, actor.permissions) for row in page["rows"]],
+        "next_cursor": page["next_cursor"],
+    }

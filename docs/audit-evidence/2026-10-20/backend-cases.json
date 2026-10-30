@@ -1,0 +1,1504 @@
+{
+  "exit_status": 0,
+  "summary": {
+    "unit:passed": 144,
+    "integration:passed": 155
+  },
+  "cases": {
+    "tests/test_backup.py::test_postgres_url_rejects_non_postgres": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0023769000108586624
+    },
+    "tests/test_backup.py::test_backup_uses_client_on_path_without_server_installation[pg_dump]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.005496099998708814
+    },
+    "tests/test_backup.py::test_backup_uses_client_on_path_without_server_installation[pg_restore]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.005128000004333444
+    },
+    "tests/test_backup.py::test_backup_falls_back_to_installed_postgres_directory": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0036343999818200245
+    },
+    "tests/test_backup.py::test_verify_backup_checks_manifest_and_catalogue": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.011895599993295036
+    },
+    "tests/test_backup.py::test_verify_backup_rejects_tampering": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0131351000018185
+    },
+    "tests/test_backup.py::test_restore_admin_url_must_use_maintenance_database": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0045362999953795224
+    },
+    "tests/test_backup.py::test_scheduled_backup_uploads_verified_pair_and_prunes_retention": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.011388300015823916
+    },
+    "tests/test_backup.py::test_restore_latest_downloads_provider_archive_and_runs_isolated_restore": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.006632100004935637
+    },
+    "tests/test_config.py::test_environment_files_are_anchored_to_project": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0005658000154653564
+    },
+    "tests/test_config.py::test_environment_precedence[root]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.018149600000469945
+    },
+    "tests/test_config.py::test_environment_precedence[api]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.01820089998363983
+    },
+    "tests/test_config.py::test_selected_environment_excludes_development_overrides": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.008231400002841838
+    },
+    "tests/test_config.py::test_missing_selected_environment_fails": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0032298000005539507
+    },
+    "tests/test_config.py::test_storage_credentials_are_redacted": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0020691999816335738
+    },
+    "tests/test_config.py::test_production_rejects_development_secrets_and_http_origins": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.005037599999923259
+    },
+    "tests/test_config.py::test_production_accepts_explicit_secure_configuration": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.002188500002375804
+    },
+    "tests/test_cv_parser_adapter_unit.py::test_http_adapter_uses_and_accepts_the_happy_parser_contract": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0029686000052606687
+    },
+    "tests/test_cv_parser_adapter_unit.py::test_http_adapter_rejects_malformed_parser_responses": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0010705000022426248
+    },
+    "tests/test_cv_parser_adapter_unit.py::test_http_adapter_rejects_oversized_parser_responses": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0006904000038048252
+    },
+    "tests/test_cv_parser_adapter_unit.py::test_http_adapter_treats_transport_errors_as_retryable": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0005801000079372898
+    },
+    "tests/test_cv_parser_integration.py::test_parser_output_is_advisory_until_explicit_human_review": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 6.095293099991977
+    },
+    "tests/test_cv_parser_integration.py::test_unconfigured_parser_fails_without_blocking_existing_cv_workflow": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.21804039998096414
+    },
+    "tests/test_cv_parser_integration.py::test_parser_execution_and_review_are_server_authorized": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.22290279998560436
+    },
+    "tests/test_cv_parser_integration.py::test_review_history_is_append_only": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.7700802000181284
+    },
+    "tests/test_database_setup.py::test_working_app_account_does_not_need_admin": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.005352399981347844
+    },
+    "tests/test_database_setup.py::test_existing_role_and_database_are_preserved": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.004434200003743172
+    },
+    "tests/test_database_setup.py::test_remote_database_is_not_provisioned": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0029861999937565997
+    },
+    "tests/test_demand_integration.py::test_employer_duplicates_pagination_version_archive_and_audit": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 3.979075199982617
+    },
+    "tests/test_demand_integration.py::test_contact_validation_primary_constraint_and_reassignment": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.4552581000025384
+    },
+    "tests/test_demand_integration.py::test_partnership_full_path_and_waiver_audit": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.7614614000049187
+    },
+    "tests/test_demand_integration.py::test_partnership_history_and_private_document_versions": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 1.473528400005307
+    },
+    "tests/test_demand_integration.py::test_vacancy_lifecycle_requirement_history_and_headcount": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.6177610000158893
+    },
+    "tests/test_demand_integration.py::test_role_projections_and_permission_denial[ADMIN]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.6004611999960616
+    },
+    "tests/test_demand_integration.py::test_role_projections_and_permission_denial[DEMAND]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.6085827999922913
+    },
+    "tests/test_demand_integration.py::test_role_projections_and_permission_denial[SUPPLY]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.6885132000170415
+    },
+    "tests/test_demand_integration.py::test_role_projections_and_permission_denial[MATCHING]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.6851812999957474
+    },
+    "tests/test_demand_integration.py::test_role_projections_and_permission_denial[MERL]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.6000798000022769
+    },
+    "tests/test_demand_integration.py::test_role_projections_and_permission_denial[MARKETING]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.7234644999844022
+    },
+    "tests/test_demand_integration.py::test_role_projections_and_permission_denial[MANAGEMENT]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.8256078000122216
+    },
+    "tests/test_demand_integration.py::test_my_work_owner_filter_csrf_archive_guard_and_validation": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 1.0536983999918448
+    },
+    "tests/test_demand_integration.py::test_input_validation_and_csrf_requirements": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.5984498000034364
+    },
+    "tests/test_demand_integration.py::test_reference_options_priority_and_safe_activity_pagination": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.5729108999948949
+    },
+    "tests/test_demand_integration.py::test_organization_activity_filters_related_events_before_pagination[False-False]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.8633139999874402
+    },
+    "tests/test_demand_integration.py::test_organization_activity_filters_related_events_before_pagination[True-False]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.8335023999825353
+    },
+    "tests/test_demand_integration.py::test_organization_activity_filters_related_events_before_pagination[False-True]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.693332199996803
+    },
+    "tests/test_demand_integration.py::test_organization_activity_filters_related_events_before_pagination[True-True]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.7937428000004729
+    },
+    "tests/test_demand_integration.py::test_activity_preserves_user_and_non_user_actor_types[organizations]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.33984530001180246
+    },
+    "tests/test_demand_integration.py::test_activity_preserves_user_and_non_user_actor_types[vacancies]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.3551445000048261
+    },
+    "tests/test_demand_integration.py::test_vacancy_history_is_append_only_and_catalogued_events_are_emitted": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.476807099985308
+    },
+    "tests/test_demand_integration.py::test_optional_mou_skip_and_signed_date_database_guard": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.40934299999207724
+    },
+    "tests/test_demand_integration.py::test_concurrent_material_edits_have_one_winner": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 2.410031599982176
+    },
+    "tests/test_demand_unit.py::test_phone_normalization_and_invalid_contacts": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.004696199990576133
+    },
+    "tests/test_demand_unit.py::test_invalid_matching_criteria[values0]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.00258689999463968
+    },
+    "tests/test_demand_unit.py::test_invalid_matching_criteria[values1]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0012499000149546191
+    },
+    "tests/test_demand_unit.py::test_invalid_matching_criteria[values2]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0011197999847354367
+    },
+    "tests/test_demand_unit.py::test_invalid_matching_criteria[values3]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.001087199998437427
+    },
+    "tests/test_demand_unit.py::test_invalid_matching_criteria[values4]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0020751999836647883
+    },
+    "tests/test_demand_unit.py::test_mou_and_reactivation_gates": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0014100999978836626
+    },
+    "tests/test_demand_unit.py::test_vacancy_confirmation_closure_and_derived_counts": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0011583999876165763
+    },
+    "tests/test_demand_unit.py::test_optional_mou_may_be_skipped_but_signed_always_needs_a_date": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0007185000140452757
+    },
+    "tests/test_demand_unit.py::test_invalid_vacancies_and_mass_assignment[extra0]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0009547999943606555
+    },
+    "tests/test_demand_unit.py::test_invalid_vacancies_and_mass_assignment[extra1]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0008369999995920807
+    },
+    "tests/test_demand_unit.py::test_invalid_vacancies_and_mass_assignment[extra2]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0009110999817494303
+    },
+    "tests/test_demand_unit.py::test_invalid_vacancies_and_mass_assignment[extra3]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0008422999962931499
+    },
+    "tests/test_demand_unit.py::test_invalid_vacancies_and_mass_assignment[extra4]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0008298000175273046
+    },
+    "tests/test_demand_unit.py::test_invalid_vacancies_and_mass_assignment[extra5]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0010204999998677522
+    },
+    "tests/test_e2e_safety.py::test_sandbox_url_rejects_untrusted_schemas[public]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0019254000071668997
+    },
+    "tests/test_e2e_safety.py::test_sandbox_url_rejects_untrusted_schemas[happy_test_]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0012353999918559566
+    },
+    "tests/test_e2e_safety.py::test_sandbox_url_rejects_untrusted_schemas[happy_test_gggggggggggggggggggggggggggggggg]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0010803000041050836
+    },
+    "tests/test_e2e_safety.py::test_sandbox_url_rejects_untrusted_schemas[happy_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;drop schema public]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0010646999871823937
+    },
+    "tests/test_e2e_safety.py::test_sandbox_url_preserves_connection_and_scopes_only_search_path": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0013521000219043344
+    },
+    "tests/test_e2e_safety.py::test_sandbox_url_refuses_production_and_remote_database[app_env-production]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0012543999910121784
+    },
+    "tests/test_e2e_safety.py::test_sandbox_url_refuses_production_and_remote_database[database_url-postgresql://test:test@external.example.org/test]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0013703000004170462
+    },
+    "tests/test_e2e_safety.py::test_browser_cleanup_never_deletes_outside_its_participant_prefix[True]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.004792599997017533
+    },
+    "tests/test_e2e_safety.py::test_browser_cleanup_never_deletes_outside_its_participant_prefix[False]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.00239869998767972
+    },
+    "tests/test_e2e_safety.py::test_browser_cleanup_never_deletes_outside_its_report_export_prefix[True]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0032366999803343788
+    },
+    "tests/test_e2e_safety.py::test_browser_cleanup_never_deletes_outside_its_report_export_prefix[False]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.005561100013437681
+    },
+    "tests/test_employer_portal_integration.py::test_auth_idempotency_encryption_and_conversion": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 7.125135700014653
+    },
+    "tests/test_employer_portal_integration.py::test_duplicate_requires_existing_organization_selection": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.3722544999909587
+    },
+    "tests/test_employer_portal_integration.py::test_non_demand_user_cannot_read_submission": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.6990663000033237
+    },
+    "tests/test_foundation_integration.py::test_database_transactions_roll_back": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.10791009999229573
+    },
+    "tests/test_foundation_integration.py::test_private_storage_round_trip_and_anonymous_access_denied": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.7382034000038402
+    },
+    "tests/test_foundation_integration.py::test_live_dependencies_pass_readiness": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.020131599987507798
+    },
+    "tests/test_hamis_integration.py::test_machine_auth_idempotency_provenance_and_update_review": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 3.6910954999912065
+    },
+    "tests/test_hamis_integration.py::test_duplicate_and_domain_activity_require_review": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.05650520000199322
+    },
+    "tests/test_hamis_integration.py::test_only_admin_can_review_events": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.5323653000086779
+    },
+    "tests/test_hamis_integration.py::test_worker_claims_committed_event_and_records_integration_actor": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.477800800013938
+    },
+    "tests/test_health.py::test_liveness_returns_request_id": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.00828670000191778
+    },
+    "tests/test_health.py::test_unsafe_request_id_is_replaced": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.007197200000518933
+    },
+    "tests/test_health.py::test_readiness_checks_database": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.006261100003030151
+    },
+    "tests/test_health.py::test_storage_failure_returns_unavailable": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.00701469999330584
+    },
+    "tests/test_health.py::test_database_failure_returns_unavailable": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0066251000098418444
+    },
+    "tests/test_iam_integration.py::test_login_cookie_projection_logout_and_audit": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 3.9518135000107577
+    },
+    "tests/test_iam_integration.py::test_login_throttling_and_generic_failures": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.6679584000085015
+    },
+    "tests/test_iam_integration.py::test_csrf_origin_and_anonymous_admin_access": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.24482990000979044
+    },
+    "tests/test_iam_integration.py::test_stale_session_is_rejected[expired]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.22857469999871682
+    },
+    "tests/test_iam_integration.py::test_stale_session_is_rejected[idle]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.21906840000883676
+    },
+    "tests/test_iam_integration.py::test_stale_session_is_rejected[inactive]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.21019179999711923
+    },
+    "tests/test_iam_integration.py::test_stale_session_is_rejected[mfa]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.22809410000627395
+    },
+    "tests/test_iam_integration.py::test_admin_user_changes_concurrency_revocation_and_mass_assignment": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.6403702000097837
+    },
+    "tests/test_iam_integration.py::test_override_revokes_permissions_on_existing_session_and_last_admin_guard": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.539732000004733
+    },
+    "tests/test_iam_integration.py::test_session_revocation_cannot_target_other_user": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.5541694999992615
+    },
+    "tests/test_iam_integration.py::test_mfa_challenge_fails_closed_and_is_consumed": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.49662479999824427
+    },
+    "tests/test_iam_integration.py::test_totp_enrolment_encrypted_factor_and_single_use_recovery": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.966264599992428
+    },
+    "tests/test_iam_integration.py::test_oidc_authorization_code_links_only_existing_verified_account": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.4825721999950474
+    },
+    "tests/test_iam_integration.py::test_account_security_changes_invalidate_pending_mfa[password]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 1.2806848999898648
+    },
+    "tests/test_iam_integration.py::test_account_security_changes_invalidate_pending_mfa[deactivation]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 1.113363099997514
+    },
+    "tests/test_iam_integration.py::test_pending_mfa_cannot_race_account_revocation": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 4.987744300015038
+    },
+    "tests/test_iam_integration.py::test_audit_is_append_only_in_postgresql": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.36382239998783916
+    },
+    "tests/test_iam_integration.py::test_seeded_roles_produce_server_side_workspaces[DEMAND]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.2879220000031637
+    },
+    "tests/test_iam_integration.py::test_seeded_roles_produce_server_side_workspaces[SUPPLY]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.338010999999824
+    },
+    "tests/test_iam_integration.py::test_seeded_roles_produce_server_side_workspaces[MATCHING]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.3018224000115879
+    },
+    "tests/test_iam_integration.py::test_seeded_roles_produce_server_side_workspaces[MERL]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.31779079999250825
+    },
+    "tests/test_iam_integration.py::test_seeded_roles_produce_server_side_workspaces[MARKETING]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.3312785000016447
+    },
+    "tests/test_iam_integration.py::test_seeded_roles_produce_server_side_workspaces[MANAGEMENT]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.33030329999746755
+    },
+    "tests/test_iam_integration.py::test_seeded_roles_produce_server_side_workspaces[ADMIN]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.3216830999881495
+    },
+    "tests/test_iam_integration.py::test_ip_throttle_limits_password_spraying": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.3684361999912653
+    },
+    "tests/test_iam_integration.py::test_cookie_rotation_and_csrf_binding": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.37284869998984504
+    },
+    "tests/test_iam_integration.py::test_admin_permissions_overrides_can_change_effect": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.43420430000696797
+    },
+    "tests/test_iam_integration.py::test_role_management_pagination_and_protected_admin": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.35006240000075195
+    },
+    "tests/test_iam_integration.py::test_staging_session_cookies_are_secure": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.6028587999899173
+    },
+    "tests/test_iam_unit.py::test_baseline_role_workspace_projection[DEMAND]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.001415400009136647
+    },
+    "tests/test_iam_unit.py::test_baseline_role_workspace_projection[SUPPLY]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0010123999963980168
+    },
+    "tests/test_iam_unit.py::test_baseline_role_workspace_projection[MATCHING]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0013008999958401546
+    },
+    "tests/test_iam_unit.py::test_baseline_role_workspace_projection[MERL]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0009461000008741394
+    },
+    "tests/test_iam_unit.py::test_baseline_role_workspace_projection[MARKETING]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0008577000116929412
+    },
+    "tests/test_iam_unit.py::test_baseline_role_workspace_projection[MANAGEMENT]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0008996999822556973
+    },
+    "tests/test_iam_unit.py::test_baseline_role_workspace_projection[ADMIN]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0017128000035881996
+    },
+    "tests/test_iam_unit.py::test_explicit_deny_wins_and_projection_omits_restricted_fields": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0004215999797452241
+    },
+    "tests/test_iam_unit.py::test_password_hashes_are_salted_and_unknown_external_accounts_fail": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.5536457999987761
+    },
+    "tests/test_iam_unit.py::test_mass_assignment_and_weak_password_are_rejected": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0017174999957205728
+    },
+    "tests/test_intake_contract_unit.py::test_actual_hamis_client_payload_is_accepted_by_public_api_schema": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.1450277999829268
+    },
+    "tests/test_intake_contract_unit.py::test_actual_employer_client_payload_is_accepted_by_public_api_schema": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.11178740000468679
+    },
+    "tests/test_integration_readiness_integration.py::test_references_bind_uuid_without_mutating_domain_identity": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 3.8388065000035567
+    },
+    "tests/test_integration_readiness_integration.py::test_duplicate_key_rejected_even_for_another_entity": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.22543060001044068
+    },
+    "tests/test_integration_readiness_integration.py::test_duplicate_key_enforced_by_database": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.005755000005592592
+    },
+    "tests/test_integration_readiness_integration.py::test_metadata_is_passive_and_does_not_grant_access": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.4382763000030536
+    },
+    "tests/test_integration_readiness_integration.py::test_reference_management_cannot_bypass_explicit_denies[organization:view]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.23209289999795146
+    },
+    "tests/test_integration_readiness_integration.py::test_reference_management_cannot_bypass_explicit_denies[organization:edit]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.21412770000461023
+    },
+    "tests/test_integration_readiness_integration.py::test_reference_management_cannot_bypass_explicit_denies[external_reference:view]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.2296409999835305
+    },
+    "tests/test_integration_readiness_integration.py::test_reference_management_cannot_bypass_explicit_denies[external_reference:manage]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.21286850000615232
+    },
+    "tests/test_integration_readiness_integration.py::test_missing_archived_unknown_targets_and_csrf": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.23098320000281092
+    },
+    "tests/test_integration_readiness_integration.py::test_metadata_update_stale_and_rebinding_denied": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.2653208999981871
+    },
+    "tests/test_integration_readiness_integration.py::test_controlled_provenance_at_database_boundary[INTERNAL]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.007595200004288927
+    },
+    "tests/test_integration_readiness_integration.py::test_controlled_provenance_at_database_boundary[HAMIS]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.005623599994578399
+    },
+    "tests/test_integration_readiness_integration.py::test_controlled_provenance_at_database_boundary[EMPLOYER_PORTAL]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.005790299997897819
+    },
+    "tests/test_integration_readiness_integration.py::test_controlled_provenance_at_database_boundary[API]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.005944300006376579
+    },
+    "tests/test_integration_readiness_integration.py::test_staff_provenance_defaults_and_mass_assignment": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.23280410000006668
+    },
+    "tests/test_integration_readiness_integration.py::test_user_system_and_future_integration_audit_preserve_append_only_behavior": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.2381584999966435
+    },
+    "tests/test_integration_readiness_integration.py::test_participant_mapping_is_generic_not_a_hamis_column": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.23040089999267366
+    },
+    "tests/test_integration_readiness_integration.py::test_forward_migration_preserves_local_references_and_user_audit": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 14.18491750000976
+    },
+    "tests/test_integration_readiness_unit.py::test_patched_crypto_retains_authenticated_encryption_recipe": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.003459000014117919
+    },
+    "tests/test_integration_readiness_unit.py::test_human_actor_has_internal_uuid[USER]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.001509599998826161
+    },
+    "tests/test_integration_readiness_unit.py::test_human_actor_has_internal_uuid[PARTICIPANT]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0014276000001700595
+    },
+    "tests/test_integration_readiness_unit.py::test_human_actor_has_internal_uuid[EMPLOYER]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0013392999971983954
+    },
+    "tests/test_integration_readiness_unit.py::test_non_user_actor_needs_no_fake_user[actor0]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0011897999938810244
+    },
+    "tests/test_integration_readiness_unit.py::test_non_user_actor_needs_no_fake_user[actor1]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0012669999996433035
+    },
+    "tests/test_integration_readiness_unit.py::test_non_user_actor_needs_no_fake_user[actor2]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0016799000150058419
+    },
+    "tests/test_integration_readiness_unit.py::test_non_user_actor_needs_no_fake_user[actor3]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0013042000064160675
+    },
+    "tests/test_integration_readiness_unit.py::test_invalid_actors_rejected[INTEGRATION-None]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0014754000148968771
+    },
+    "tests/test_integration_readiness_unit.py::test_invalid_actors_rejected[INTEGRATION-hamis]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.001458200000342913
+    },
+    "tests/test_integration_readiness_unit.py::test_invalid_actors_rejected[SYSTEM-contains a secret]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0015413999935844913
+    },
+    "tests/test_integration_readiness_unit.py::test_invalid_actors_rejected[UNKNOWN-HAMIS]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0013882000057492405
+    },
+    "tests/test_integration_readiness_unit.py::test_invalid_actors_rejected[USER-None]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0017210000078193843
+    },
+    "tests/test_integration_readiness_unit.py::test_source_vocabulary[INTERNAL]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0028867000073660165
+    },
+    "tests/test_integration_readiness_unit.py::test_source_vocabulary[HAMIS]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0016742000152589753
+    },
+    "tests/test_integration_readiness_unit.py::test_source_vocabulary[EMPLOYER_PORTAL]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.001738899969495833
+    },
+    "tests/test_integration_readiness_unit.py::test_source_vocabulary[API]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0016204999992623925
+    },
+    "tests/test_integration_readiness_unit.py::test_creation_vocabulary[STAFF]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0013998999929754063
+    },
+    "tests/test_integration_readiness_unit.py::test_creation_vocabulary[PARTICIPANT]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.002662900005816482
+    },
+    "tests/test_integration_readiness_unit.py::test_creation_vocabulary[EMPLOYER]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0018903999880421907
+    },
+    "tests/test_integration_readiness_unit.py::test_creation_vocabulary[INTEGRATION]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0013846000074408948
+    },
+    "tests/test_integration_readiness_unit.py::test_creation_vocabulary[SYSTEM]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0014686999784316868
+    },
+    "tests/test_integration_readiness_unit.py::test_provenance_cannot_be_mass_assigned_by_staff": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0018509999790694565
+    },
+    "tests/test_integration_readiness_unit.py::test_reference_schema_keeps_ids_distinct_and_bindings_immutable": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0013239999971119687
+    },
+    "tests/test_integration_readiness_unit.py::test_reference_input_is_bounded_and_explicit[changes0]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.002790399987134151
+    },
+    "tests/test_integration_readiness_unit.py::test_reference_input_is_bounded_and_explicit[changes1]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0016313999949488789
+    },
+    "tests/test_integration_readiness_unit.py::test_reference_input_is_bounded_and_explicit[changes2]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.00179720000596717
+    },
+    "tests/test_integration_readiness_unit.py::test_reference_input_is_bounded_and_explicit[changes3]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.002093799994327128
+    },
+    "tests/test_integration_readiness_unit.py::test_reference_input_is_bounded_and_explicit[changes4]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0017041999963112175
+    },
+    "tests/test_integration_readiness_unit.py::test_reference_input_is_bounded_and_explicit[changes5]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.002391899994108826
+    },
+    "tests/test_marketing_integration.py::test_request_lineage_and_requester_visibility": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 7.653046000006725
+    },
+    "tests/test_marketing_integration.py::test_campaign_state_assets_and_metrics": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.4084992999996757
+    },
+    "tests/test_marketing_integration.py::test_training_request_and_campaign_preserve_lineage": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.2979545000125654
+    },
+    "tests/test_marketing_integration.py::test_impact_story_requires_active_consent_and_projects_only_approved_facts": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.39407280000159517
+    },
+    "tests/test_marketing_integration.py::test_management_has_read_only_marketing_projection": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.8440821999975014
+    },
+    "tests/test_matching_integration.py::test_full_human_matching_workflow_and_submission_gate": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 5.913069099988206
+    },
+    "tests/test_matching_integration.py::test_decline_is_vacancy_specific_and_bulk_write_is_atomic": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.41685759999381844
+    },
+    "tests/test_matching_integration.py::test_authorization_database_guards_and_advisory_suggestions": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.6953423000086332
+    },
+    "tests/test_matching_integration.py::test_placement_start_first_income_confirmation_and_later_exit": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 1.385980399994878
+    },
+    "tests/test_matching_unit.py::test_state_machine_keeps_placement_states_outside_matching": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0007706000033067539
+    },
+    "tests/test_matching_unit.py::test_candidate_inputs_reject_mass_assignment_and_incoherent_actions": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0012668999988818541
+    },
+    "tests/test_matching_unit.py::test_qualified_screening_requires_positive_human_evidence": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.001094500010367483
+    },
+    "tests/test_matching_unit.py::test_bulk_candidates_are_unique_and_bounded": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0011701999901561067
+    },
+    "tests/test_matching_unit.py::test_work_bucket_uses_accra_aware_dates": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0017105999868363142
+    },
+    "tests/test_matching_unit.py::test_advisory_match_strength_always_has_explanations_and_uncertainty": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0009889000066323206
+    },
+    "tests/test_matching_unit.py::test_expected_first_income_uses_payroll_frequency_and_cutoff": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.000641100006760098
+    },
+    "tests/test_merl_integration.py::test_manual_and_template_follow_up_scheduling_without_seeded_cadence": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 6.204977300018072
+    },
+    "tests/test_merl_integration.py::test_follow_up_outcomes_are_historical_and_append_employment_evidence": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.4043439000233775
+    },
+    "tests/test_merl_integration.py::test_sensitive_income_is_permission_gated_and_conflict_opens_quality_issue": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.7032010000111768
+    },
+    "tests/test_merl_integration.py::test_outcome_correction_preserves_append_only_revision": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 1.444502000013017
+    },
+    "tests/test_migration_config.py::test_migrations_accept_url_encoded_credentials": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 4.153707799996482
+    },
+    "tests/test_process.py::test_creation_flags_are_cross_platform_and_typed": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0010907000105362386
+    },
+    "tests/test_public_intake_integration.py::test_public_submission_uses_central_domain_without_accounts": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 6.775158700009342
+    },
+    "tests/test_public_intake_integration.py::test_possible_duplicate_requires_review_without_disclosing_person": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.07085860001097899
+    },
+    "tests/test_public_intake_integration.py::test_public_validation_rejects_staff_fields_and_invalid_notice": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.04084719998354558
+    },
+    "tests/test_public_intake_integration.py::test_origin_rate_and_abuse_controls": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.044514699999126606
+    },
+    "tests/test_public_intake_integration.py::test_private_cv_queues_parser_without_authoritative_profile_update": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.1589687999803573
+    },
+    "tests/test_public_intake_integration.py::test_invalid_upload_rolls_back_submission": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.02506889999494888
+    },
+    "tests/test_public_intake_integration.py::test_intake_operations_are_staff_only_and_duplicate_link_preserves_profile": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.5801903000101447
+    },
+    "tests/test_public_intake_integration.py::test_required_policy_fields_and_request_size_are_enforced": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.07130609998421278
+    },
+    "tests/test_public_intake_integration.py::test_pending_intake_scan_cannot_parse_until_authorized_security_retry": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.451980600002571
+    },
+    "tests/test_public_intake_integration.py::test_parser_worker_recovers_outage_restart_and_exhausted_final_lease": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.5021393000060925
+    },
+    "tests/test_public_intake_integration.py::test_employer_intake_is_reviewed_and_maps_central_draft_vacancy": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.4145338000089396
+    },
+    "tests/test_public_intake_integration.py::test_employer_duplicates_by_contact_require_explicit_existing_selection": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.3970333000033861
+    },
+    "tests/test_public_intake_integration.py::test_integrated_golden_workflow_uses_public_intakes_and_real_parser": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 2.6157330999994883
+    },
+    "tests/test_reporting_integration.py::test_kpi_dictionary_formulas_and_drilldowns": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 4.590369700003066
+    },
+    "tests/test_reporting_integration.py::test_targets_gap_forecast_and_export_permissions": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.7654259999835631
+    },
+    "tests/test_reporting_integration.py::test_persisted_export_job_is_private_audited_and_downloadable": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.726142899991828
+    },
+    "tests/test_reporting_integration.py::test_export_worker_retries_failures_and_recovers_expired_leases": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.43151829998532776
+    },
+    "tests/test_reporting_integration.py::test_unapproved_kpis_are_explicitly_unavailable": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.46340790000976995
+    },
+    "tests/test_reporting_integration.py::test_reporting_is_server_authorized_and_period_is_bounded": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 1.3894103999919025
+    },
+    "tests/test_search_integration.py::test_search_projects_each_role_permissions_without_sensitive_fields[DEMAND]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 6.105907899996964
+    },
+    "tests/test_search_integration.py::test_search_projects_each_role_permissions_without_sensitive_fields[SUPPLY]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.322249600008945
+    },
+    "tests/test_search_integration.py::test_search_projects_each_role_permissions_without_sensitive_fields[MATCHING]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.3030947999941418
+    },
+    "tests/test_search_integration.py::test_search_projects_each_role_permissions_without_sensitive_fields[MERL]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.29790970000613015
+    },
+    "tests/test_search_integration.py::test_search_projects_each_role_permissions_without_sensitive_fields[MARKETING]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.2845915999932913
+    },
+    "tests/test_search_integration.py::test_search_projects_each_role_permissions_without_sensitive_fields[MANAGEMENT]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.35722920001717284
+    },
+    "tests/test_search_integration.py::test_search_projects_each_role_permissions_without_sensitive_fields[ADMIN]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.2856632999901194
+    },
+    "tests/test_search_integration.py::test_explicit_deny_and_requested_groups_cannot_bypass_authorization": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.4945700000098441
+    },
+    "tests/test_search_integration.py::test_authentication_origin_and_csrf_are_required": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.4191059999866411
+    },
+    "tests/test_search_integration.py::test_group_cursor_pagination_is_bounded_and_does_not_repeat_rows": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 1.0687387000070885
+    },
+    "tests/test_search_integration.py::test_archived_records_and_private_fields_are_not_searchable": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 1.597077399987029
+    },
+    "tests/test_search_integration.py::test_like_patterns_are_literals_and_public_codes_and_phones_are_searchable": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.6418967000063276
+    },
+    "tests/test_search_integration.py::test_query_count_is_constant_and_search_text_is_not_audited": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 2.506844199990155
+    },
+    "tests/test_search_unit.py::test_search_input_is_bounded_and_cannot_supply_authority[fields0]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0021899999846937135
+    },
+    "tests/test_search_unit.py::test_search_input_is_bounded_and_cannot_supply_authority[fields1]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0018372000195086002
+    },
+    "tests/test_search_unit.py::test_search_input_is_bounded_and_cannot_supply_authority[fields2]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.001617899994016625
+    },
+    "tests/test_search_unit.py::test_search_input_is_bounded_and_cannot_supply_authority[fields3]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.001988299991353415
+    },
+    "tests/test_search_unit.py::test_search_input_is_bounded_and_cannot_supply_authority[fields4]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0013736999972024933
+    },
+    "tests/test_search_unit.py::test_search_input_is_bounded_and_cannot_supply_authority[fields5]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0012983999913558364
+    },
+    "tests/test_search_unit.py::test_search_input_is_bounded_and_cannot_supply_authority[fields6]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0014041000104043633
+    },
+    "tests/test_search_unit.py::test_search_input_is_bounded_and_cannot_supply_authority[fields7]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0021933000098215416
+    },
+    "tests/test_search_unit.py::test_search_input_is_bounded_and_cannot_supply_authority[fields8]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0016939000051934272
+    },
+    "tests/test_search_unit.py::test_search_input_is_bounded_and_cannot_supply_authority[fields9]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0016010999970603734
+    },
+    "tests/test_search_unit.py::test_search_input_is_bounded_and_cannot_supply_authority[fields10]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.001543799982755445
+    },
+    "tests/test_search_unit.py::test_search_input_is_bounded_and_cannot_supply_authority[fields11]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.001527199987322092
+    },
+    "tests/test_search_unit.py::test_search_input_is_bounded_and_cannot_supply_authority[fields12]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.001436999998986721
+    },
+    "tests/test_search_unit.py::test_search_strips_outer_whitespace_and_accepts_literal_pattern_characters": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0015306999994209036
+    },
+    "tests/test_search_unit.py::test_search_denies_before_accessing_database_when_no_resource_is_permitted": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0014057000080356374
+    },
+    "tests/test_storage_setup.py::test_missing_bucket_is_created_private": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.01972739998018369
+    },
+    "tests/test_storage_setup.py::test_access_denied_does_not_create_bucket": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0036257999890949577
+    },
+    "tests/test_supply_integration.py::test_intake_duplicates_versions_progressive_sections_and_archive": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 8.407419300012407
+    },
+    "tests/test_supply_integration.py::test_consent_completion_withdrawal_and_policy_changes_gate_submission": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.49109530000714585
+    },
+    "tests/test_supply_integration.py::test_participant_permissions_and_sensitive_projections[ADMIN]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.5920457000029273
+    },
+    "tests/test_supply_integration.py::test_participant_permissions_and_sensitive_projections[SUPPLY]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.5537973000027705
+    },
+    "tests/test_supply_integration.py::test_participant_permissions_and_sensitive_projections[DEMAND]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.8825945999997202
+    },
+    "tests/test_supply_integration.py::test_participant_permissions_and_sensitive_projections[MATCHING]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.5760719999816502
+    },
+    "tests/test_supply_integration.py::test_participant_permissions_and_sensitive_projections[MERL]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.566571399991517
+    },
+    "tests/test_supply_integration.py::test_participant_permissions_and_sensitive_projections[MARKETING]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.7566253999975743
+    },
+    "tests/test_supply_integration.py::test_participant_permissions_and_sensitive_projections[MANAGEMENT]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.7453870000026654
+    },
+    "tests/test_supply_integration.py::test_identity_encryption_hash_and_audit_minimization": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.45024689999991097
+    },
+    "tests/test_supply_integration.py::test_private_cv_versions_scan_gate_approval_download_and_archive": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.6850221999920905
+    },
+    "tests/test_supply_integration.py::test_intake_creator_with_edit_denied_cannot_be_assigned_or_edit": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.6360780000104569
+    },
+    "tests/test_supply_integration.py::test_my_work_dashboard_filters_withdrawn_and_archived": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.6335455000080401
+    },
+    "tests/test_supply_integration.py::test_unknown_policy_configuration_fails_closed[supply_required_sections-value0]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.25160370000230614
+    },
+    "tests/test_supply_integration.py::test_unknown_policy_configuration_fails_closed[supply_required_fields-value1]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.22518149999086745
+    },
+    "tests/test_supply_integration.py::test_normalized_name_location_duplicates_and_profile_edits_invalidate_review": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.27622189998510294
+    },
+    "tests/test_supply_integration.py::test_document_read_is_refreshed_after_parent_lock[approve-AVAILABLE]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.2556596999784233
+    },
+    "tests/test_supply_integration.py::test_document_read_is_refreshed_after_parent_lock[rescan-SCANNING]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.2567455000098562
+    },
+    "tests/test_supply_integration.py::test_document_read_is_refreshed_after_parent_lock[archive-AVAILABLE]": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.28842350000923034
+    },
+    "tests/test_supply_integration.py::test_database_rejects_duplicate_identity_hashes": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.8783823000121629
+    },
+    "tests/test_supply_unit.py::test_age_is_derived_and_accounts_for_birthday": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0006947000219952315
+    },
+    "tests/test_supply_unit.py::test_intake_validation_and_mass_assignment[extra0]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0014175000105751678
+    },
+    "tests/test_supply_unit.py::test_intake_validation_and_mass_assignment[extra1]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0013881999911973253
+    },
+    "tests/test_supply_unit.py::test_intake_validation_and_mass_assignment[extra2]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0015220999921439216
+    },
+    "tests/test_supply_unit.py::test_intake_validation_and_mass_assignment[extra3]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0009429000201635063
+    },
+    "tests/test_supply_unit.py::test_intake_validation_and_mass_assignment[extra4]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0011666000063996762
+    },
+    "tests/test_supply_unit.py::test_intake_validation_and_mass_assignment[extra5]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.00121489999582991
+    },
+    "tests/test_supply_unit.py::test_section_validation[SensitiveWrite-values0]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0008071000047493726
+    },
+    "tests/test_supply_unit.py::test_section_validation[SensitiveWrite-values1]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0006396000098902732
+    },
+    "tests/test_supply_unit.py::test_section_validation[EducationFields-values2]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0006704000115860254
+    },
+    "tests/test_supply_unit.py::test_section_validation[ExperienceFields-values3]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0006890000076964498
+    },
+    "tests/test_supply_unit.py::test_section_validation[Assignment-values4]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0006695000192848966
+    },
+    "tests/test_supply_unit.py::test_section_validation[ConsentWrite-values5]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.000630300011835061
+    },
+    "tests/test_supply_unit.py::test_pdf_filename_validation_and_size_limit": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0023310999968089163
+    },
+    "tests/test_supply_unit.py::test_docx_rejects_macros_and_path_traversal": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0058825000014621764
+    },
+    "tests/test_supply_unit.py::test_docx_requires_real_xml_and_rejects_entity_declarations": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0030672000139020383
+    },
+    "tests/test_supply_unit.py::test_scanner_protocol_and_fail_closed[stream: OK\\x00-AVAILABLE]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.001557600000523962
+    },
+    "tests/test_supply_unit.py::test_scanner_protocol_and_fail_closed[stream: Eicar-Test-Signature FOUND\\x00-REJECTED]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0008108000038191676
+    },
+    "tests/test_supply_unit.py::test_scanner_protocol_and_fail_closed[stream: error\\x00-SCANNING]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0011157000117236748
+    },
+    "tests/test_supply_unit.py::test_scanner_protocol_and_fail_closed[-SCANNING]": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0012732999748550355
+    },
+    "tests/test_supply_unit.py::test_unconfigured_and_unreachable_scanner_never_marks_available": {
+      "group": "unit",
+      "outcome": "passed",
+      "duration": 0.0008205999911297113
+    },
+    "tests/test_training_integration.py::test_training_attendance_permissions_uniqueness_and_audit": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 4.908653200007393
+    },
+    "tests/test_training_integration.py::test_training_validation": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.7559344999899622
+    },
+    "tests/test_work_integration.py::test_task_scope_transitions_notification_version_and_audit": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 5.626923499992699
+    },
+    "tests/test_work_integration.py::test_cross_workstream_handoff_lifecycle_is_server_scoped": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.7704682999901706
+    },
+    "tests/test_work_integration.py::test_handoff_rejects_unknown_or_same_workstream": {
+      "group": "integration",
+      "outcome": "passed",
+      "duration": 0.7864542000024812
+    }
+  }
+}

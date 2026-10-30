@@ -1,8 +1,9 @@
+import re
 from datetime import date
 from typing import Literal, Self
 from uuid import UUID
 
-from pydantic import EmailStr, Field, HttpUrl, field_validator, model_validator
+from pydantic import EmailStr, Field, HttpUrl, SecretStr, field_validator, model_validator
 
 from app.integrations.employer_portal.schemas import PortalVacancy
 from app.modules.demand.schemas import normalize_phone
@@ -35,14 +36,39 @@ class PublicSensitive(supply.SensitiveWrite):
     version: Literal[1] = 1
 
 
+class PublicContact(supply.Contact):
+    @field_validator("phone_raw")
+    @classmethod
+    def ghana_phone(cls, value: str) -> str:
+        canonical = normalize_phone(value)
+        if not canonical or not re.fullmatch(r"\+233[0-9]{9}", canonical):
+            raise ValueError("Enter a valid Ghana phone number.")
+        return value
+
+
+class PublicIdentity(supply.IdentityWrite):
+    version: Literal[1] = 1
+    government_id_type: Literal["GHANA_CARD"] = "GHANA_CARD"
+
+    @field_validator("government_id")
+    @classmethod
+    def ghana_card(cls, value: SecretStr) -> SecretStr:
+        raw = value.get_secret_value().strip().upper()
+        if not re.fullmatch(r"GHA-[0-9]{9}-[0-9]", raw):
+            raise ValueError("Check the Ghana Card format.")
+        return value.__class__(raw)
+
+
 class ParticipantSubmission(Input):
     submission_id: UUID
     basic: supply.Basic
-    contact: supply.Contact
+    contact: PublicContact
     demographics: PublicDemographics | None = None
     education: list[supply.EducationFields] = Field(default_factory=list, max_length=30)
     employment: PublicEmployment | None = None
     sensitive: PublicSensitive | None = None
+    identity: PublicIdentity | None = None
+    training_interests: list[supply.TrainingInterest] = Field(default_factory=list, max_length=2)
     implementing_partner: str | None = Field(default=None, max_length=150)
     supplemental: dict[str, str] = Field(default_factory=dict, max_length=25)
     training_summary: str | None = Field(default=None, max_length=5000)
@@ -52,6 +78,8 @@ class ParticipantSubmission(Input):
 
     @model_validator(mode="after")
     def supplemental_fields(self) -> Self:
+        if len(set(self.training_interests)) != len(self.training_interests):
+            raise ValueError("Select each training interest once.")
         allowed = {
             "preferredName",
             "participantTypeSupport",

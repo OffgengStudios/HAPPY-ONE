@@ -2,7 +2,7 @@
 
 Version: `/api/v1`, schema version 1. PostgreSQL remains authoritative.
 
-## HAMIS: public collection without sign-in
+## UNIJAY: public collection without sign-in
 
 `GET /api/v1/participant-intake/config` returns the approved notice text/version,
 configured onboarding requirements and upload limit. An unconfigured notice
@@ -18,13 +18,15 @@ closes intake. This response contains no personal records or credentials.
 There are **no participant accounts, passwords, login, authentication sessions,
 RBAC identities, account dashboards, public participant lookup, or public profile
 update endpoints**. The frontend opens directly to collection. Staff credentials,
-integration machine tokens and database credentials are never sent to HAMIS.
+integration machine tokens and database credentials are never sent to UNIJAY.
 
-Unfinished forms autosave in the current browser tab. The participant may opt to
-keep the draft on that device for at most 24 hours. Drafts expire and are deleted
-after accepted submission or an explicit discard. CV bytes are not persisted in
-web storage; reselect attachments after reload. Drafts are not an authoritative
-dataset. Subsequent programme operations belong to staff in HAPPY.
+The UNIJAY collector retains an unchanged submission UUID for retries within the open page. It does not persist sensitive form data in web storage. Subsequent programme operations belong to staff in HAPPY.
+
+The collector groups First Name, optional Other Names and Surname without automatic splitting. Ghana phone numbers normalize server-side. DOB and free-text community map to Supply demographics/contact without fabricated region/district. Ghana Card uses GHANA_CARD protected identity encryption and keyed lookup; staff/public serialization never reveals its value. topicOfInterest maps to training_interests (CAREER_READINESS / SOFT_SKILLS), separate from recruitment skills. Versioned consent is mandatory. New source attribution is centrally UNIJAY_FASHION; historical HAMIS values remain unchanged.
+
+Registration may remain IN_PROGRESS when approved onboarding policy requires more information. Readiness remains NOT_ASSESSED and availability UNKNOWN. Recruitment submission still requires the existing complete-onboarding/consent gate.
+
+Employer Portal and public employer-intake routes are absent by default. ENABLE_LEGACY_INTEGRATIONS is forbidden in staging/production and is reserved for retained-adapter development/test regressions. Older employer/HAMIS contracts below are historical compatibility references.
 
 The payload explicitly separates basic/contact/demographics/education/employment,
 self-reported sensitive fields and training summary. Skill verification, staff

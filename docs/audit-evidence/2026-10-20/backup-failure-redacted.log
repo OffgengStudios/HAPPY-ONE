@@ -1,0 +1,16 @@
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\jobbe\Downloads\HAPPY ONE\.local\readiness-20261020\checkout\HAPPY_PLATFORM_CODEX\apps\api\app\db\backup.py", line 279, in <module>
+    main()
+  File "C:\Users\jobbe\Downloads\HAPPY ONE\.local\readiness-20261020\checkout\HAPPY_PLATFORM_CODEX\apps\api\app\db\backup.py", line 263, in main
+    archive = create_backup(arguments.archive)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\jobbe\Downloads\HAPPY ONE\.local\readiness-20261020\checkout\HAPPY_PLATFORM_CODEX\apps\api\app\db\backup.py", line 90, in create_backup
+    run(
+  File "C:\Users\jobbe\Downloads\HAPPY ONE\.local\readiness-20261020\checkout\HAPPY_PLATFORM_CODEX\apps\api\app\db\backup.py", line 67, in run
+    return subprocess.run(
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\jobbe\AppData\Local\Programs\Python\Python312\Lib\subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['C:\\Program Files\\PostgreSQL\\18\\bin\\pg_dump.exe', '--format=custom', '--no-owner', '--no-privileges', '--file', 'C:\\Users\\jobbe\\Downloads\\HAPPY ONE\\.local\\readiness-20261020\\failed-backup.dump', 'postgresql://happy_audit_d4d541a5:[REDACTED_AUDIT_PASSWORD]@127.0.0.1:52013/happy_audit_d4d541a5']' returned non-zero exit status 1.

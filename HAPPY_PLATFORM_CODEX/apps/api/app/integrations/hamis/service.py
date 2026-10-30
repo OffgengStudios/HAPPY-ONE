@@ -37,6 +37,9 @@ def event_view(row: HamisInboundEvent, replayed: bool = False) -> dict[str, Any]
         "received_at": row.received_at,
         "processed_at": row.processed_at,
         "version": row.version,
+        "error_code": row.error_code,
+        "error_message": row.error_message,
+        "attempt_count": row.attempt_count,
         "replayed": replayed,
     }
 

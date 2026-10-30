@@ -24,6 +24,7 @@ class TrainingFields(BaseModel):
     location_text: Text | None = None
     virtual_platform: Short | None = None
     modules_json: list[Short] = Field(default_factory=list, max_length=100)
+    agriculture_sector: Annotated[str, Field(min_length=1, max_length=60)] | None = None
     status: Literal["DRAFT", "PLANNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"] = "DRAFT"
 
     @model_validator(mode="after")
@@ -55,9 +56,17 @@ class AttendanceCreate(BaseModel):
 
 
 class AttendanceUpdate(Version):
+    received_modules: list[Short] = Field(default_factory=list, max_length=100)
+    completed_modules: list[Short] = Field(default_factory=list, max_length=100)
     attendance_status: Literal["PRESENT", "ABSENT", "LATE", "EXCUSED"]
     completion_status: Literal["NOT_STARTED", "IN_PROGRESS", "COMPLETED", "NOT_COMPLETED"]
     notes: Text | None = None
+
+    @model_validator(mode="after")
+    def modules(self) -> Self:
+        if not set(self.completed_modules) <= set(self.received_modules):
+            raise ValueError("Completed modules must also be recorded as received.")
+        return self
 
 
 class CertificateWrite(Version):

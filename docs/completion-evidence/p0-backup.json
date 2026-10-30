@@ -1,0 +1,13 @@
+{
+  "revision": "0036_vacancy_terms",
+  "success_seconds": 14.022,
+  "real_postgres_commands": [
+    "pg_dump",
+    "pg_restore",
+    "pg_restore",
+    "pg_restore"
+  ],
+  "credentials_absent_from_subprocess_argv": true,
+  "failed_cli_exit_code": 1,
+  "failed_cli_output_safe": true
+}

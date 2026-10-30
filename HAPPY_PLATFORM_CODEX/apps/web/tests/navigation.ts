@@ -1,6 +1,9 @@
 import { expect, type Page } from "@playwright/test";
 
 export async function navigate(page: Page, name: string) {
+  await expect(
+    page.getByRole("navigation", { name: "Account navigation", exact: true }),
+  ).toBeVisible();
   const item = page
     .getByRole("navigation", { name: "Account navigation", exact: true })
     .getByRole("button", { name, exact: true });

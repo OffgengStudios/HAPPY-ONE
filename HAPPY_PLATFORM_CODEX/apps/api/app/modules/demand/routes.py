@@ -526,7 +526,7 @@ def vacancies(
         query = query.where(Vacancy.status.in_(s.OPEN_STATES))
     page = page_query(query, Vacancy, db, limit, cursor)
     return {
-        "items": [s.vacancy_view(db, row) for row in page["rows"]],
+        "items": s.vacancy_views(db, page["rows"]),
         "next_cursor": page["next_cursor"],
     }
 

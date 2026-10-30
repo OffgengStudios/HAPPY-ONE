@@ -16,6 +16,7 @@ from app.integrations.employer_portal.service import cipher
 from app.integrations.intake import metrics
 from app.integrations.intake.models import IntakeDocument, PublicIntake
 from app.integrations.intake.schemas import ParticipantSubmission
+from app.integrations.intake.sources import PARTICIPANT_SOURCE
 from app.modules.cv_parser import service as parsing
 from app.modules.demand.schemas import normalize_phone
 from app.modules.external_references.models import ExternalReference
@@ -40,7 +41,7 @@ from app.storage.s3 import get_storage_client
 
 class PublicActor:
     permissions: set[str] = set()
-    audit_actor = AuditActor("INTEGRATION", "HAMIS_PUBLIC")
+    audit_actor = AuditActor("INTEGRATION", PARTICIPANT_SOURCE + "_PUBLIC")
 
 
 def protect(db: Session, request: Request) -> None:
@@ -69,6 +70,15 @@ def protect(db: Session, request: Request) -> None:
 def lock_key(db: Session, value: str) -> None:
     number = int.from_bytes(hashlib.sha256(value.encode()).digest()[:8], "big", signed=True)
     db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": number})
+
+
+def submitted_payload(data: ParticipantSubmission) -> dict[str, Any]:
+    # SecretStr masks normal serialization. Only this encrypted-evidence boundary
+    # unwraps the value; never use it in logs, audits or public responses.
+    payload = data.model_dump(mode="json")
+    if data.identity:
+        payload["identity"]["government_id"] = data.identity.government_id.get_secret_value()
+    return payload
 
 
 def receipt(
@@ -185,9 +195,20 @@ def apply_participant(
     }
     if data.contact.email:
         conflict_keys.add("participant-email:" + str(data.contact.email).casefold())
+    fingerprint = None
+    if data.identity:
+        fingerprint = supply.identity_hash(
+            data.identity.government_id_type, data.identity.government_id.get_secret_value()
+        )
+        conflict_keys.add("participant-identity:" + fingerprint)
     for key in sorted(conflict_keys):
         lock_key(db, key)
-    if supply.duplicates(db, profile):
+    identity_match = (
+        db.scalar(select(Person.id).where(Person.government_id_hash == fingerprint))
+        if fingerprint
+        else None
+    )
+    if identity_match or supply.duplicates(db, profile):
         receipt_row.status = "NEEDS_REVIEW"
         metrics.duplicate_reviews.add(1)
         audit(
@@ -209,7 +230,7 @@ def apply_participant(
     person = db.get(Person, row.person_id)
     assert person is not None
     for record in (row, person):
-        record.source_system = "HAMIS"
+        record.source_system = PARTICIPANT_SOURCE
         record.created_via = "PARTICIPANT"
     sections: list[tuple[str, Any]] = []
     if data.demographics:
@@ -220,11 +241,15 @@ def apply_participant(
         )
     if data.employment:
         sections.append(("employment", data.employment))
-    if data.training_summary:
+    if data.training_summary or data.training_interests:
         sections.append(
             (
                 "training",
-                schemas.TrainingWrite(version=row.version, training_summary=data.training_summary),
+                schemas.TrainingWrite(
+                    version=row.version,
+                    training_summary=data.training_summary,
+                    training_interests=data.training_interests,
+                ),
             )
         )
     for name, values in sections:
@@ -246,6 +271,8 @@ def apply_participant(
     )
     if data.sensitive:
         supply.save_sensitive(db, row, data.sensitive, actor, request, commit=False)
+    if data.identity:
+        supply.save_identity(db, row, data.identity, actor, request, commit=False)
     # These children belong to the participant just created in this transaction.
     # Retain participant provenance rather than the staff service's defaults.
     db.flush()
@@ -253,7 +280,7 @@ def apply_participant(
         db.execute(
             update(model)
             .where(model.participant_id == row.id)
-            .values(source_system="HAMIS", created_via="PARTICIPANT")
+            .values(source_system=PARTICIPANT_SOURCE, created_via="PARTICIPANT")
         )
     if staged:
         document = Document(
@@ -266,7 +293,7 @@ def apply_participant(
             sha256=staged.sha256,
             version_number=1,
             scan_status=staged.scan_status,
-            source_system="HAMIS",
+            source_system=PARTICIPANT_SOURCE,
             created_via="PARTICIPANT",
             scan_details={"provider": "clamd" if settings.file_scan_host else "unconfigured"},
         )
@@ -296,12 +323,8 @@ def apply_participant(
     )
     db.flush()
     progress = supply.checklist(db, row)
-    if progress["missing_fields"] or set(progress["missing_sections"]) - {"cv"}:
-        raise ApiError(
-            422,
-            "ONBOARDING_INCOMPLETE",
-            "Complete the required onboarding information before submitting.",
-        )
+    # Registration may precede complete Supply onboarding. Preserve the actual
+    # checklist; only the existing policy gate may mark onboarding complete.
     if (
         progress["policy_configured"]
         and not progress["missing_sections"]
@@ -321,7 +344,7 @@ def apply_participant(
         ExternalReference(
             entity_type="PARTICIPANT",
             entity_id=row.id,
-            external_system="HAMIS",
+            external_system=PARTICIPANT_SOURCE,
             external_id=str(data.submission_id),
         )
     )

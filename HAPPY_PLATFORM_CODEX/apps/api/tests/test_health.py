@@ -68,3 +68,38 @@ def test_database_failure_returns_unavailable(monkeypatch) -> None:  # type: ign
     response = TestClient(app).get("/api/v1/health/ready")
     assert response.status_code == 503
     assert "private database" not in response.text
+
+
+def test_database_refusal_is_bounded_and_does_not_affect_liveness(monkeypatch):
+    import socket
+    import time
+
+    from fastapi.testclient import TestClient
+
+    from app.core.config import settings
+    from app.db import session
+    from app.main import app
+
+    with socket.socket() as unused:
+        unused.bind(("127.0.0.1", 0))
+        port = unused.getsockname()[1]
+    monkeypatch.setattr(
+        settings,
+        "database_url",
+        f"postgresql+psycopg://synthetic:sentinel@127.0.0.1:{port}/unavailable",
+    )
+    session.get_engine.cache_clear()
+    client = TestClient(app)
+    try:
+        started = time.monotonic()
+        response = client.get("/api/v1/health/ready")
+        assert response.status_code == 503
+        assert (
+            time.monotonic() - started
+            < settings.db_connect_timeout_seconds + settings.db_pool_timeout_seconds + 1
+        )
+        assert "sentinel" not in response.text
+        assert client.get("/api/v1/health/live").status_code == 200
+    finally:
+        session.get_engine().dispose()
+        session.get_engine.cache_clear()

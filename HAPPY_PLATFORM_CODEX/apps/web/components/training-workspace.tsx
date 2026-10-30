@@ -96,6 +96,7 @@ export function TrainingWorkspace({ user }: { user: Me }) {
       extra: row ? { version: row.version } : undefined,
       fields: [
         { key: "title", label: "Training title", required: true, max: 200 },
+        { key: "agriculture_sector", label: "Agriculture Sector", max: 60 },
         {
           key: "training_type",
           label: "Training type",
@@ -139,8 +140,8 @@ export function TrainingWorkspace({ user }: { user: Me }) {
         { key: "virtual_platform", label: "Virtual platform", max: 120 },
         {
           key: "modules_json",
-          label: "Modules (JSON list)",
-          type: "json",
+          label: "Planned modules (one per line)",
+          type: "list",
           required: true,
         },
         {
@@ -166,6 +167,16 @@ export function TrainingWorkspace({ user }: { user: Me }) {
       initial: row,
       extra: { version: row.version },
       fields: [
+        {
+          key: "received_modules",
+          label: "Modules received (one per line)",
+          type: "list",
+        },
+        {
+          key: "completed_modules",
+          label: "Modules completed (one per line)",
+          type: "list",
+        },
         {
           key: "attendance_status",
           label: "Attendance",

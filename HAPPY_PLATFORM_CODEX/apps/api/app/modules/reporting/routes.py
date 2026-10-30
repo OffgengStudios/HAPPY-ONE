@@ -10,10 +10,12 @@ from starlette.responses import Response, StreamingResponse
 from app.core.config import settings
 from app.core.errors import ApiError
 from app.modules.iam.dependencies import Database, Principal, require
+from app.modules.iam.models import now
 from app.modules.iam.service import audit
 from app.modules.marketing.models import Campaign
 from app.modules.merl.models import DataQualityIssue, FollowUp
 from app.modules.placement.models import FirstIncomeVerification, Placement
+from app.modules.reporting import programme
 from app.modules.reporting import schemas as data
 from app.modules.reporting import service as s
 from app.modules.reporting.models import ReportExportJob, ReportTarget
@@ -44,8 +46,10 @@ def validate_export(values: data.ExportRequest, actor: Principal) -> None:
             )
 
 
-def owned_job(db: Database, identifier: UUID, actor: Principal) -> ReportExportJob:
-    row = db.get(ReportExportJob, identifier)
+def owned_job(
+    db: Database, identifier: UUID, actor: Principal, *, lock: bool = False
+) -> ReportExportJob:
+    row = db.get(ReportExportJob, identifier, with_for_update=lock, populate_existing=lock)
     if not row or row.archived_at or row.requested_by != actor.user.id:
         raise ApiError(404, "REPORT_EXPORT_JOB_NOT_FOUND", "Export job not found.")
     return row
@@ -119,6 +123,75 @@ def dashboard(date_from: date, date_to: date, db: Database, actor: Read) -> dict
             or 0,
         },
     }
+
+
+@router.get("/reports/programme")
+def programme_report(date_from: date, date_to: date, db: Database, actor: Read) -> dict[str, Any]:
+    if "participant:view" not in actor.permissions:
+        raise ApiError(403, "PERMISSION_DENIED", "Participant access is required.")
+    period(date_from, date_to)
+    result = programme.build(db, date_from, date_to)
+    return {key: result[key] for key in ("counts", "issues", "notes")}
+
+
+@router.get("/reports/programme/export")
+def programme_export(
+    date_from: date,
+    date_to: date,
+    db: Database,
+    actor: Export,
+    request: Request,
+    include_sensitive: bool = False,
+    privacy_acknowledged: bool = False,
+    include_identity_numbers: bool = False,
+) -> Response:
+    if "participant:view" not in actor.permissions:
+        raise ApiError(403, "PERMISSION_DENIED", "Participant access is required.")
+    if (
+        include_sensitive
+        and not {"report:sensitive_export", "participant_sensitive:view"} <= actor.permissions
+    ):
+        raise ApiError(403, "PERMISSION_DENIED", "Sensitive programme export is not permitted.")
+    if include_sensitive and not privacy_acknowledged:
+        raise ApiError(422, "PRIVACY_ACKNOWLEDGEMENT_REQUIRED", "Acknowledge the sensitive export.")
+    if include_identity_numbers and not include_sensitive:
+        raise ApiError(
+            422, "SENSITIVE_EXPORT_REQUIRED", "Identity numbers require sensitive export."
+        )
+    period(date_from, date_to)
+    result = programme.build(db, date_from, date_to, include_sensitive, include_identity_numbers)
+    result["notes"] = [
+        *result["notes"],
+        f"Period: {date_from} to {date_to}",
+        f"Prepared by: {actor.user.full_name}",
+        f"Report revision generated: {now().isoformat()}",
+    ]
+    content = programme.workbook(result)
+    audit(
+        db,
+        "report.exported",
+        actor.audit_actor,
+        "report",
+        None,
+        request,
+        changes={
+            "report": "PROGRAMME",
+            "date_from": str(date_from),
+            "date_to": str(date_to),
+            "include_sensitive": include_sensitive,
+            "include_identity_numbers": include_identity_numbers,
+            "counts": result["counts"],
+        },
+    )
+    db.commit()
+    return Response(
+        content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": 'attachment; filename="happy-programme.xlsx"',
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 @router.get("/reports/kpis")
@@ -228,6 +301,51 @@ def export_jobs(db: Database, actor: Export) -> dict[str, Any]:
 @router.get("/reports/export-jobs/{identifier}")
 def export_job(identifier: UUID, db: Database, actor: Export) -> dict[str, Any]:
     return s.export_job_view(owned_job(db, identifier, actor))
+
+
+@router.post("/reports/export-jobs/{identifier}/retry", status_code=202)
+def export_job_retry(
+    identifier: UUID, values: data.ExportRetry, db: Database, actor: Export, request: Request
+) -> dict[str, Any]:
+    row = owned_job(db, identifier, actor, lock=True)
+    if row.version != values.version:
+        raise ApiError(
+            409, "RECORD_VERSION_CONFLICT", "This export changed. Refresh before retrying."
+        )
+    if row.status != "FAILED":
+        raise ApiError(409, "REPORT_EXPORT_NOT_FAILED", "Only failed exports can be retried.")
+    validate_export(
+        data.ExportRequest(
+            kpi_code=row.kpi_code,
+            date_from=row.period_start,
+            date_to=row.period_end,
+            include_sensitive=row.include_sensitive,
+            privacy_acknowledged=values.privacy_acknowledged,
+        ),
+        actor,
+    )
+    row.status = "PENDING"
+    row.attempt_count = 0
+    row.error_code = None
+    row.error_message = None
+    row.next_attempt_at = None
+    row.lease_owner = None
+    row.lease_expires_at = None
+    row.started_at = None
+    row.completed_at = None
+    row.version += 1
+    row.updated_by = actor.user.id
+    audit(
+        db,
+        "report.export_retried",
+        actor.audit_actor,
+        "report_export_job",
+        row.id,
+        request,
+        changes={"reason": values.reason},
+    )
+    db.commit()
+    return s.export_job_view(row)
 
 
 @router.get("/reports/export-jobs/{identifier}/download")

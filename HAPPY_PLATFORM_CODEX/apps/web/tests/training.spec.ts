@@ -38,7 +38,9 @@ test("Supply staff creates training and records participant completion", async (
   await dialog.getByLabel("Delivery mode").selectOption("IN_PERSON");
   await dialog.getByLabel("Start date").fill("2026-10-14");
   await dialog.getByLabel("Location").fill("Accra training centre");
-  await dialog.getByLabel("Modules (JSON list)").fill('["CV","INTERVIEW"]');
+  await dialog
+    .getByLabel("Planned modules (one per line)")
+    .fill("CV\nINTERVIEW");
   await dialog.getByLabel("Status").selectOption("IN_PROGRESS");
   await save(page, "New training");
 

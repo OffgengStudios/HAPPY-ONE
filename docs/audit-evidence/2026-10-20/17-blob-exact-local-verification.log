@@ -1,0 +1,305 @@
+
+Python formatting
+201 files already formatted
+
+Backend lint
+All checks passed!
+
+Backend types
+Success: no issues found in 127 source files
+
+Database migration
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+
+Migration model drift
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.plugins] setting up autogenerate plugin alembic.autogenerate.schemas
+INFO  [alembic.runtime.plugins] setting up autogenerate plugin alembic.autogenerate.tables
+INFO  [alembic.runtime.plugins] setting up autogenerate plugin alembic.autogenerate.types
+INFO  [alembic.runtime.plugins] setting up autogenerate plugin alembic.autogenerate.constraints
+INFO  [alembic.runtime.plugins] setting up autogenerate plugin alembic.autogenerate.defaults
+INFO  [alembic.runtime.plugins] setting up autogenerate plugin alembic.autogenerate.comments
+No new upgrade operations detected.
+
+Backend unit and live integration tests
+============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.1.1, pluggy-1.7.0
+cachedir: C:\Users\jobbe\Downloads\HAPPY ONE\.local\readiness-20261020\checkout\HAPPY_PLATFORM_CODEX\.local\pytest\9090d6bce6ca4922914c82228b59768a\cache
+rootdir: C:\Users\jobbe\Downloads\HAPPY ONE\.local\readiness-20261020\checkout\HAPPY_PLATFORM_CODEX\apps\api
+configfile: pyproject.toml
+plugins: anyio-4.15.1, platformdirs-4.13.5
+collected 299 items
+
+apps\api\tests\test_backup.py .........                                  [  3%]
+apps\api\tests\test_config.py ........                                   [  5%]
+apps\api\tests\test_cv_parser_adapter_unit.py ....                       [  7%]
+apps\api\tests\test_cv_parser_integration.py ....                        [  8%]
+apps\api\tests\test_database_setup.py ...                                [  9%]
+apps\api\tests\test_demand_integration.py ........................       [ 17%]
+apps\api\tests\test_demand_unit.py ...............                       [ 22%]
+apps\api\tests\test_e2e_safety.py ...........                            [ 26%]
+apps\api\tests\test_employer_portal_integration.py ...                   [ 27%]
+apps\api\tests\test_foundation_integration.py ...                        [ 28%]
+apps\api\tests\test_hamis_integration.py ....                            [ 29%]
+apps\api\tests\test_health.py .....                                      [ 31%]
+apps\api\tests\test_iam_integration.py .............................     [ 40%]
+apps\api\tests\test_iam_unit.py ..........                               [ 44%]
+apps\api\tests\test_intake_contract_unit.py ..                           [ 44%]
+apps\api\tests\test_integration_readiness_integration.py ............... [ 49%]
+...                                                                      [ 50%]
+apps\api\tests\test_integration_readiness_unit.py ...................... [ 58%]
+........                                                                 [ 60%]
+apps\api\tests\test_marketing_integration.py .....                       [ 62%]
+apps\api\tests\test_matching_integration.py ....                         [ 63%]
+apps\api\tests\test_matching_unit.py .......                             [ 66%]
+apps\api\tests\test_merl_integration.py ....                             [ 67%]
+apps\api\tests\test_migration_config.py .                                [ 67%]
+apps\api\tests\test_process.py .                                         [ 68%]
+apps\api\tests\test_public_intake_integration.py .............           [ 72%]
+apps\api\tests\test_reporting_integration.py ......                      [ 74%]
+apps\api\tests\test_search_integration.py .............                  [ 78%]
+apps\api\tests\test_search_unit.py ...............                       [ 83%]
+apps\api\tests\test_storage_setup.py ..                                  [ 84%]
+apps\api\tests\test_supply_integration.py ....................           [ 91%]
+apps\api\tests\test_supply_unit.py .....................                 [ 98%]
+apps\api\tests\test_training_integration.py ..                           [ 98%]
+apps\api\tests\test_work_integration.py ...                              [100%]
+
+============================== warnings summary ===============================
+.venv\Lib\site-packages\fastapi\testclient.py:1
+  C:\Users\jobbe\Downloads\HAPPY ONE\.local\readiness-20261020\checkout\HAPPY_PLATFORM_CODEX\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: C:\Users\jobbe\Downloads\HAPPY ONE\.local\readiness-20261020\evidence\backend-junit.xml -
+================= 299 passed, 1 warning in 189.35s (0:03:09) ==================
+
+JavaScript formatting
+
+> happy-management-platform@1.0.0-rc.1 format:check C:\Users\jobbe\Downloads\HAPPY ONE\.local\readiness-20261020\checkout\HAPPY_PLATFORM_CODEX
+> prettier --check apps/web packages package.json pnpm-workspace.yaml docker-compose.yml infra ../.github/workflows
+
+Checking formatting...
+All matched files use Prettier code style!
+
+Frontend lint
+
+> happy-management-platform@1.0.0-rc.1 lint C:\Users\jobbe\Downloads\HAPPY ONE\.local\readiness-20261020\checkout\HAPPY_PLATFORM_CODEX
+> pnpm --recursive run lint
+
+Scope: 4 of 5 workspace projects
+packages/config lint$ node --check env.mjs
+packages/config lint: Done
+apps/web lint$ eslint . --max-warnings=0
+apps/web lint: Done
+
+Workspace types
+
+> happy-management-platform@1.0.0-rc.1 type-check C:\Users\jobbe\Downloads\HAPPY ONE\.local\readiness-20261020\checkout\HAPPY_PLATFORM_CODEX
+> pnpm --recursive run type-check
+
+Scope: 4 of 5 workspace projects
+packages/config type-check$ node --check env.mjs
+packages/shared-types type-check$ tsc --noEmit
+packages/ui type-check$ tsc --noEmit
+packages/config type-check: Done
+packages/shared-types type-check: Done
+packages/ui type-check: Done
+apps/web type-check$ tsc --noEmit
+apps/web type-check: Done
+
+Environment tests
+
+> @happy/config@1.0.0-rc.1 test C:\Users\jobbe\Downloads\HAPPY ONE\.local\readiness-20261020\checkout\HAPPY_PLATFORM_CODEX\packages\config
+> node --test tests/*.test.mjs
+
+✔ root values are available, including quoted JSON and public API URLs (16.925ms)
+✔ process values override app values, which override root values (12.3042ms)
+✔ an explicit staging file excludes development files (12.8866ms)
+✔ a missing explicitly selected environment fails (4.7704ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 445.2992
+
+Web production build
+
+> web@1.0.0-rc.1 build C:\Users\jobbe\Downloads\HAPPY ONE\.local\readiness-20261020\checkout\HAPPY_PLATFORM_CODEX\apps\web
+> next build
+
+   ▲ Next.js 15.5.27
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 18.8s
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/4) ...
+   Generating static pages (1/4)
+   Generating static pages (2/4)
+   Generating static pages (3/4)
+ ✓ Generating static pages (4/4)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+┌ ○ /                                    64.6 kB         167 kB
+└ ○ /_not-found                            991 B         103 kB
++ First Load JS shared by all             102 kB
+  ├ chunks/43-9fedbfba5accfd4e.js        46.1 kB
+  ├ chunks/b7f2936b-da817275ccb4d69c.js  54.2 kB
+  └ other shared chunks (total)          1.96 kB
+
+
+○  (Static)  prerendered as static content
+
+
+Desktop and mobile browser tests
+
+> web@1.0.0-rc.1 test C:\Users\jobbe\Downloads\HAPPY ONE\.local\readiness-20261020\checkout\HAPPY_PLATFORM_CODEX\apps\web
+> playwright test
+
+[WebServer] (node:21084) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:26020) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 100 tests using 1 worker
+
+(node:10696) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok   1 [desktop] › tests\accessibility.spec.ts:32:5 › sign-in and authenticated Management surfaces have no automated WCAG A/AA violations (17.2s)
+  ok   2 [desktop] › tests\accessibility.spec.ts:61:7 › admin default workspace has no automated WCAG A/AA violations (4.0s)
+  ok   3 [desktop] › tests\accessibility.spec.ts:61:7 › demand default workspace has no automated WCAG A/AA violations (3.9s)
+  ok   4 [desktop] › tests\accessibility.spec.ts:61:7 › supply default workspace has no automated WCAG A/AA violations (5.2s)
+  ok   5 [desktop] › tests\accessibility.spec.ts:61:7 › matching default workspace has no automated WCAG A/AA violations (4.6s)
+  ok   6 [desktop] › tests\accessibility.spec.ts:61:7 › merl default workspace has no automated WCAG A/AA violations (3.4s)
+  ok   7 [desktop] › tests\accessibility.spec.ts:61:7 › marketing default workspace has no automated WCAG A/AA violations (3.3s)
+  ok   8 [desktop] › tests\demand.spec.ts:53:5 › Demand staff converts an Employer Portal submission (3.7s)
+  ok   9 [desktop] › tests\demand.spec.ts:92:5 › Demand staff completes an employer-to-vacancy workflow (40.6s)
+  ok  10 [desktop] › tests\demand.spec.ts:253:5 › Marketing sees vacancies without employer contact or editing access (4.5s)
+  ok  11 [desktop] › tests\foundation.spec.ts:3:5 › the foundation shell renders without errors or horizontal overflow (1.3s)
+  ok  12 [desktop] › tests\header.spec.ts:36:5 › the account menu supports keyboard navigation, security and sign-out recovery (4.9s)
+  ok  13 [desktop] › tests\header.spec.ts:94:5 › the profile popover fits narrow screens and dismisses outside or on resize (3.4s)
+  ok  14 [desktop] › tests\header.spec.ts:133:5 › grouped search opens the existing UUID-backed records without changing workspace (8.2s)
+  ok  15 [desktop] › tests\header.spec.ts:207:5 › search pages are bounded, replace results and retain earlier cursors (4.5s)
+  ok  16 [desktop] › tests\header.spec.ts:281:5 › changed search text aborts older responses and failed searches can be retried (5.0s)
+  ok  17 [desktop] › tests\header.spec.ts:362:5 › search only reveals permitted groups and disappears on real session expiry (4.1s)
+  ok  18 [desktop] › tests\iam.spec.ts:17:5 › authorized staff can inspect integration operations (4.6s)
+  ok  19 [desktop] › tests\iam.spec.ts:48:5 › login errors are actionable and an account can sign out (6.6s)
+  ok  20 [desktop] › tests\iam.spec.ts:73:5 › marketing receives its workspace and cannot call account administration (2.4s)
+  ok  21 [desktop] › tests\iam.spec.ts:100:5 › administrator creates an account, updates its status, and reads audit history (7.0s)
+  ok  22 [desktop] › tests\iam.spec.ts:149:5 › administrator creates and edits a custom role (4.3s)
+  ok  23 [desktop] › tests\marketing.spec.ts:23:5 › Marketing staff receives a request and moves a campaign into production (8.7s)
+  ok  24 [desktop] › tests\matching.spec.ts:23:5 › Matching staff qualifies, submits, interviews and selects a candidate (16.5s)
+  ok  25 [desktop] › tests\merl.spec.ts:38:5 › MERL staff schedules a follow-up, records an outcome and sees dashboard evidence (6.0s)
+  ok  26 [desktop] › tests\placement.spec.ts:23:5 › Matching staff records start, verifies first income and preserves a placement after exit (8.8s)
+  ok  27 [desktop] › tests\quick-add.spec.ts:66:5 › action editors use desktop drawers and mobile full-screen panels with reachable controls (4.6s)
+  ok  28 [desktop] › tests\quick-add.spec.ts:112:5 › Supply quick-add creates through the existing participant API and cannot expose Demand commands (4.2s)
+  ok  29 [desktop] › tests\quick-add.spec.ts:166:5 › explicit grants allow creation outside default workspaces without assigning ineligible owners (5.1s)
+  ok  30 [desktop] › tests\quick-add.spec.ts:224:5 › a Supply creator denied editing waits for owners and creates without ineligible self-assignment (6.2s)
+  ok  31 [desktop] › tests\quick-add.spec.ts:304:5 › a DENY override removes employer quick-add while the vacancy flow remains authorized (5.4s)
+  ok  32 [desktop] › tests\quick-add.spec.ts:347:5 › quick-add waits for reference data, retries failures and never reopens a cancelled form (4.4s)
+  ok  33 [desktop] › tests\quick-add.spec.ts:402:5 › quick-add ordering follows workspace while resize and expired sessions clear its sheet (2.7s)
+  ok  34 [desktop] › tests\reporting.spec.ts:19:5 › Management can inspect KPI evidence and export bounded or prepared reports (5.8s)
+  ok  35 [desktop] › tests\shell.spec.ts:17:5 › the account shell uses a sidebar on desktop and a compact bottom bar on mobile (2.0s)
+  ok  36 [desktop] › tests\shell.spec.ts:67:5 › workspace navigation adapts without losing overflow access or keyboard dismissal (2.1s)
+  ok  37 [desktop] › tests\shell.spec.ts:137:5 › the overflow menu cannot reveal forbidden account controls and expires with the session (2.4s)
+  ok  38 [desktop] › tests\supply.spec.ts:55:5 › onboarding autosave queues in-flight edits and recovers an offline draft (10.6s)
+  ok  39 [desktop] › tests\supply.spec.ts:150:5 › draft validation retains edits and a version conflict cannot overwrite another editor (8.8s)
+  ok  40 [desktop] › tests\supply.spec.ts:229:5 › a denied participant permission shows an actionable Supply access state (2.2s)
+  ok  41 [desktop] › tests\supply.spec.ts:248:5 › private CV approval and download preserve the current version when a new scan is pending (11.8s)
+  ok  42 [desktop] › tests\supply.spec.ts:459:5 › Supply staff completes progressive onboarding and withdraws consent (16.5s)
+  ok  43 [desktop] › tests\supply.spec.ts:662:5 › Matching participant reader has no onboarding or sensitive editing access (3.0s)
+  ok  44 [desktop] › tests\supply.spec.ts:697:5 › Supply staff reviews advisory CV parser suggestions without automatic overwrite (3.2s)
+  ok  45 [desktop] › tests\theme.spec.ts:4:5 › HAPPY uses the prototype's recruitment-blue accents and typography (998ms)
+  ok  46 [desktop] › tests\theme.spec.ts:24:5 › primary commands follow shared theme tokens, including hover (1.3s)
+  ok  47 [desktop] › tests\theme.spec.ts:47:5 › selected account navigation follows shared theme tokens (2.5s)
+  ok  48 [desktop] › tests\theme.spec.ts:102:7 › surface motion respects no-preference without delaying focus or actions (3.6s)
+  ok  49 [desktop] › tests\theme.spec.ts:102:7 › surface motion respects reduce without delaying focus or actions (2.6s)
+  ok  50 [desktop] › tests\training.spec.ts:24:5 › Supply staff creates training and records participant completion (10.6s)
+(node:24828) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  51 [mobile] › tests\accessibility.spec.ts:32:5 › sign-in and authenticated Management surfaces have no automated WCAG A/AA violations (7.4s)
+  ok  52 [mobile] › tests\accessibility.spec.ts:61:7 › admin default workspace has no automated WCAG A/AA violations (3.8s)
+  ok  53 [mobile] › tests\accessibility.spec.ts:61:7 › demand default workspace has no automated WCAG A/AA violations (3.4s)
+  ok  54 [mobile] › tests\accessibility.spec.ts:61:7 › supply default workspace has no automated WCAG A/AA violations (3.1s)
+  ok  55 [mobile] › tests\accessibility.spec.ts:61:7 › matching default workspace has no automated WCAG A/AA violations (3.1s)
+  ok  56 [mobile] › tests\accessibility.spec.ts:61:7 › merl default workspace has no automated WCAG A/AA violations (2.5s)
+  ok  57 [mobile] › tests\accessibility.spec.ts:61:7 › marketing default workspace has no automated WCAG A/AA violations (2.6s)
+  ok  58 [mobile] › tests\demand.spec.ts:53:5 › Demand staff converts an Employer Portal submission (3.3s)
+  ok  59 [mobile] › tests\demand.spec.ts:92:5 › Demand staff completes an employer-to-vacancy workflow (26.9s)
+  ok  60 [mobile] › tests\demand.spec.ts:253:5 › Marketing sees vacancies without employer contact or editing access (2.9s)
+  ok  61 [mobile] › tests\foundation.spec.ts:3:5 › the foundation shell renders without errors or horizontal overflow (1.0s)
+  ok  62 [mobile] › tests\header.spec.ts:36:5 › the account menu supports keyboard navigation, security and sign-out recovery (3.4s)
+  ok  63 [mobile] › tests\header.spec.ts:94:5 › the profile popover fits narrow screens and dismisses outside or on resize (3.1s)
+  ok  64 [mobile] › tests\header.spec.ts:133:5 › grouped search opens the existing UUID-backed records without changing workspace (4.6s)
+  ok  65 [mobile] › tests\header.spec.ts:207:5 › search pages are bounded, replace results and retain earlier cursors (4.4s)
+  ok  66 [mobile] › tests\header.spec.ts:281:5 › changed search text aborts older responses and failed searches can be retried (4.4s)
+  ok  67 [mobile] › tests\header.spec.ts:362:5 › search only reveals permitted groups and disappears on real session expiry (2.4s)
+  ok  68 [mobile] › tests\iam.spec.ts:17:5 › authorized staff can inspect integration operations (2.4s)
+  ok  69 [mobile] › tests\iam.spec.ts:48:5 › login errors are actionable and an account can sign out (3.3s)
+  ok  70 [mobile] › tests\iam.spec.ts:73:5 › marketing receives its workspace and cannot call account administration (2.2s)
+  ok  71 [mobile] › tests\iam.spec.ts:100:5 › administrator creates an account, updates its status, and reads audit history (7.8s)
+  ok  72 [mobile] › tests\iam.spec.ts:149:5 › administrator creates and edits a custom role (5.8s)
+  ok  73 [mobile] › tests\marketing.spec.ts:23:5 › Marketing staff receives a request and moves a campaign into production (8.5s)
+  ok  74 [mobile] › tests\matching.spec.ts:23:5 › Matching staff qualifies, submits, interviews and selects a candidate (13.9s)
+  ok  75 [mobile] › tests\merl.spec.ts:38:5 › MERL staff schedules a follow-up, records an outcome and sees dashboard evidence (6.5s)
+  ok  76 [mobile] › tests\placement.spec.ts:23:5 › Matching staff records start, verifies first income and preserves a placement after exit (5.8s)
+  ok  77 [mobile] › tests\quick-add.spec.ts:66:5 › action editors use desktop drawers and mobile full-screen panels with reachable controls (3.6s)
+  ok  78 [mobile] › tests\quick-add.spec.ts:112:5 › Supply quick-add creates through the existing participant API and cannot expose Demand commands (3.1s)
+  ok  79 [mobile] › tests\quick-add.spec.ts:166:5 › explicit grants allow creation outside default workspaces without assigning ineligible owners (4.7s)
+  ok  80 [mobile] › tests\quick-add.spec.ts:224:5 › a Supply creator denied editing waits for owners and creates without ineligible self-assignment (5.3s)
+  ok  81 [mobile] › tests\quick-add.spec.ts:304:5 › a DENY override removes employer quick-add while the vacancy flow remains authorized (4.6s)
+  ok  82 [mobile] › tests\quick-add.spec.ts:347:5 › quick-add waits for reference data, retries failures and never reopens a cancelled form (6.3s)
+  ok  83 [mobile] › tests\quick-add.spec.ts:402:5 › quick-add ordering follows workspace while resize and expired sessions clear its sheet (3.6s)
+  ok  84 [mobile] › tests\reporting.spec.ts:19:5 › Management can inspect KPI evidence and export bounded or prepared reports (3.3s)
+  ok  85 [mobile] › tests\shell.spec.ts:17:5 › the account shell uses a sidebar on desktop and a compact bottom bar on mobile (2.5s)
+  ok  86 [mobile] › tests\shell.spec.ts:67:5 › workspace navigation adapts without losing overflow access or keyboard dismissal (4.2s)
+  ok  87 [mobile] › tests\shell.spec.ts:137:5 › the overflow menu cannot reveal forbidden account controls and expires with the session (2.6s)
+  ok  88 [mobile] › tests\supply.spec.ts:55:5 › onboarding autosave queues in-flight edits and recovers an offline draft (9.2s)
+  ok  89 [mobile] › tests\supply.spec.ts:150:5 › draft validation retains edits and a version conflict cannot overwrite another editor (7.2s)
+  ok  90 [mobile] › tests\supply.spec.ts:229:5 › a denied participant permission shows an actionable Supply access state (2.4s)
+  ok  91 [mobile] › tests\supply.spec.ts:248:5 › private CV approval and download preserve the current version when a new scan is pending (11.9s)
+  ok  92 [mobile] › tests\supply.spec.ts:459:5 › Supply staff completes progressive onboarding and withdraws consent (17.0s)
+  ok  93 [mobile] › tests\supply.spec.ts:662:5 › Matching participant reader has no onboarding or sensitive editing access (2.6s)
+  ok  94 [mobile] › tests\supply.spec.ts:697:5 › Supply staff reviews advisory CV parser suggestions without automatic overwrite (3.0s)
+  ok  95 [mobile] › tests\theme.spec.ts:4:5 › HAPPY uses the prototype's recruitment-blue accents and typography (910ms)
+  ok  96 [mobile] › tests\theme.spec.ts:24:5 › primary commands follow shared theme tokens, including hover (1.3s)
+  ok  97 [mobile] › tests\theme.spec.ts:47:5 › selected account navigation follows shared theme tokens (1.9s)
+  ok  98 [mobile] › tests\theme.spec.ts:102:7 › surface motion respects no-preference without delaying focus or actions (3.2s)
+  ok  99 [mobile] › tests\theme.spec.ts:102:7 › surface motion respects reduce without delaying focus or actions (3.1s)
+  ok 100 [mobile] › tests\training.spec.ts:24:5 › Supply staff creates training and records participant completion (5.0s)
+
+  100 passed (9.8m)
+
+Python dependency consistency
+No broken requirements found.
+
+Python dependency audit
+Found 12 known vulnerabilities in 1 package
+Name Version ID              Fix Versions
+---- ------- --------------- ------------
+pip  25.0.1  PYSEC-2026-1795 25.3
+pip  25.0.1  PYSEC-2026-1796 26.0
+pip  25.0.1  PYSEC-2026-2875 26.1
+pip  25.0.1  PYSEC-2026-2876 26.1
+pip  25.0.1  PYSEC-2026-196  26.1.2
+pip  25.0.1  PYSEC-2026-1795 25.3
+pip  25.0.1  PYSEC-2026-1796 26.0
+pip  25.0.1  PYSEC-2026-196  26.1.2
+pip  25.0.1  PYSEC-2026-2875 26.1
+pip  25.0.1  PYSEC-2026-2876 26.1
+pip  25.0.1  PYSEC-2026-3721 26.2
+pip  25.0.1  PYSEC-2026-3721 26.2.0
+
+Name      Skip Reason
+--------- -------------------------------
+happy-api distribution marked as editable
+FAILED: Python dependency audit
+Synthetic browser API and test schema removed.

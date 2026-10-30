@@ -1,0 +1,128 @@
+[
+  {
+    "label": "01-create-venv",
+    "exit_code": 0,
+    "seconds": 12.884,
+    "log": "01-create-venv.log"
+  },
+  {
+    "label": "02-documented-api-install",
+    "exit_code": 0,
+    "seconds": 321.541,
+    "log": "02-documented-api-install.log"
+  },
+  {
+    "label": "03-frozen-node-install",
+    "exit_code": 0,
+    "seconds": 26.605,
+    "log": "03-frozen-node-install.log"
+  },
+  {
+    "label": "04-storage-install",
+    "exit_code": 0,
+    "seconds": 148.408,
+    "log": "04-storage-install.log"
+  },
+  {
+    "label": "05-storage-start",
+    "exit_code": 0,
+    "seconds": 7.505,
+    "log": "05-storage-start.log"
+  },
+  {
+    "label": "06-empty-db-migrations",
+    "exit_code": 0,
+    "seconds": 7.454,
+    "log": "06-empty-db-migrations.log"
+  },
+  {
+    "label": "07-documented-parser-import",
+    "exit_code": 1,
+    "seconds": 0.202,
+    "log": "07-documented-parser-import.log"
+  },
+  {
+    "label": "08-documented-golden-test",
+    "exit_code": 1,
+    "seconds": 27.078,
+    "log": "08-documented-golden-test.log"
+  },
+  {
+    "label": "09-ecosystem-parser-test-dependencies",
+    "exit_code": 0,
+    "seconds": 20.915,
+    "log": "09-ecosystem-parser-test-dependencies.log"
+  },
+  {
+    "label": "10-full-local-verification",
+    "exit_code": 4,
+    "seconds": 61.605,
+    "log": "10-full-local-verification.log"
+  },
+  {
+    "label": "11-public-browser-journeys",
+    "exit_code": 0,
+    "seconds": 65.149,
+    "log": "11-public-browser-journeys.log"
+  },
+  {
+    "label": "12-parser-runtime-and-contracts",
+    "exit_code": 0,
+    "seconds": 3.949,
+    "log": "12-parser-runtime-and-contracts.log"
+  },
+  {
+    "label": "13-frontend-contracts",
+    "exit_code": 0,
+    "seconds": 0.666,
+    "log": "13-frontend-contracts.log"
+  },
+  {
+    "label": "14-hamis-build",
+    "exit_code": 0,
+    "seconds": 0.291,
+    "log": "14-hamis-build.log"
+  },
+  {
+    "label": "15-employer-build",
+    "exit_code": 0,
+    "seconds": 0.267,
+    "log": "15-employer-build.log"
+  },
+  {
+    "label": "16-full-local-verification",
+    "exit_code": 1,
+    "seconds": 259.847,
+    "log": "16-full-local-verification.log"
+  },
+  {
+    "label": "17-blob-exact-local-verification",
+    "exit_code": 1,
+    "seconds": 963.031,
+    "log": "17-blob-exact-local-verification.log"
+  },
+  {
+    "label": "18-documented-pip-upgrade",
+    "exit_code": 0,
+    "seconds": 11.357,
+    "log": "18-documented-pip-upgrade.log"
+  },
+  {
+    "label": "19-python-dependency-consistency",
+    "exit_code": 0,
+    "seconds": 1.034,
+    "log": "19-python-dependency-consistency.log"
+  },
+  {
+    "label": "20-python-dependency-audit",
+    "exit_code": 0,
+    "seconds": 3.123,
+    "log": "20-python-dependency-audit.log"
+  },
+  {
+    "label": "21-javascript-production-audit",
+    "exit_code": 0,
+    "seconds": 1.184,
+    "log": "21-javascript-production-audit.log"
+  }
+]

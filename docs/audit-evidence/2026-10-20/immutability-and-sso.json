@@ -1,0 +1,14 @@
+{
+  "audit_update": {
+    "blocked": true,
+    "sqlstate": "P0001"
+  },
+  "audit_delete": {
+    "blocked": true,
+    "sqlstate": "P0001"
+  },
+  "sso_callback_log": {
+    "response_status": 401,
+    "code_logged": true
+  }
+}

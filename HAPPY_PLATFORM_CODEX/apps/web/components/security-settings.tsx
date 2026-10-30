@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LogOut, RefreshCw } from "lucide-react";
 import { api, Me, Session, time } from "@/lib/api";
 import { useState } from "react";
+import { PasswordInput } from "./password-input";
 
 export function SecuritySettings({
   user,
@@ -98,16 +99,16 @@ export function SecuritySettings({
           <h3 className="font-semibold">Authenticator app</h3>
           {!secret ? (
             <div className="flex flex-wrap items-end gap-3">
-              <label className="field-label flex-1">
-                Current password
-                <input
-                  className="field"
-                  type="password"
+              <div className="field-label flex-1">
+                <label htmlFor="mfa-enrol-password">Current password</label>
+                <PasswordInput
+                  id="mfa-enrol-password"
                   autoComplete="current-password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
+                  visibilityDisabled={busy === "mfa"}
                 />
-              </label>
+              </div>
               <button
                 className="command primary"
                 disabled={!password || busy === "mfa"}
@@ -123,15 +124,16 @@ export function SecuritySettings({
                 <strong className="break-all">{secret}</strong>
               </p>
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="field-label">
-                  Current password
-                  <input
-                    className="field"
-                    type="password"
+                <div className="field-label">
+                  <label htmlFor="mfa-confirm-password">Current password</label>
+                  <PasswordInput
+                    id="mfa-confirm-password"
+                    autoComplete="current-password"
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
+                    visibilityDisabled={busy === "mfa"}
                   />
-                </label>
+                </div>
                 <label className="field-label">
                   Six-digit code
                   <input

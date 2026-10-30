@@ -43,6 +43,7 @@ import { DemandWorkspace } from "./demand-workspace";
 import { SupplyWorkspace } from "./supply-workspace";
 import { AccountNavigation } from "./account-navigation";
 import { ProfileMenu } from "./profile-menu";
+import { PasswordInput } from "./password-input";
 import { GlobalSearch } from "./global-search";
 import { SearchItem } from "@/lib/search";
 import { QuickAdd, QuickAddKind } from "./quick-add";
@@ -51,7 +52,6 @@ import { PlacementWorkspace } from "./placement-workspace";
 import { MerlWorkspace } from "./merl-workspace";
 import { MarketingWorkspace } from "./marketing-workspace";
 import { ReportingWorkspace } from "./reporting-workspace";
-import { EmployerSubmissionWorkspace } from "./employer-submission-workspace";
 import { TrainingWorkspace } from "./training-workspace";
 import { WorkWorkspace } from "./work-workspace";
 
@@ -188,18 +188,18 @@ function SignIn({ onSuccess }: { onSuccess: () => Promise<unknown> }) {
                   onChange={(event) => setEmail(event.target.value)}
                 />
               </label>
-              <label className="field-label">
-                Password
-                <input
-                  className="field"
-                  type="password"
+              <div className="field-label">
+                <label htmlFor="sign-in-password">Password</label>
+                <PasswordInput
+                  id="sign-in-password"
                   autoComplete="current-password"
                   required
                   maxLength={128}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
+                  visibilityDisabled={busy}
                 />
-              </label>
+              </div>
             </>
           )}
           {error && (
@@ -265,6 +265,30 @@ function Experience() {
   const [record, setRecord] = useState<SearchItem | null>(null);
   const [create, setCreate] = useState<QuickAddKind | null>(null);
   const content = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const navigate = (event: Event) => {
+      const target = (event as CustomEvent<{ view: string; id?: string }>)
+        .detail;
+      if (!["participants", "training", "placements"].includes(target.view))
+        return;
+      setView(target.view);
+      setCreate(null);
+      setNavigationVersion((value) => value + 1);
+      setRecord(
+        target.id
+          ? {
+              entity_type: "PARTICIPANT",
+              id: target.id,
+              code: "",
+              label: "",
+              context: null,
+            }
+          : null,
+      );
+    };
+    window.addEventListener("happy:navigate", navigate);
+    return () => window.removeEventListener("happy:navigate", navigate);
+  }, []);
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const animation = content.current?.animate(
@@ -440,12 +464,6 @@ function Experience() {
       name: "First Income",
       icon: CircleDollarSign,
       allowed: user.permissions.includes("first_income:view"),
-    },
-    {
-      id: "employer-submissions",
-      name: "Employer Submissions",
-      icon: Inbox,
-      allowed: user.permissions.includes("employer_submission:view"),
     },
     {
       id: "employers",
@@ -661,10 +679,6 @@ function Experience() {
               }
             />
           )}
-          {active === "employer-submissions" &&
-            user.permissions.includes("employer_submission:view") && (
-              <EmployerSubmissionWorkspace />
-            )}
           {active === "training" &&
             user.permissions.includes("training:view") && (
               <TrainingWorkspace user={user} />

@@ -25,6 +25,7 @@ import {
   User,
 } from "@/lib/api";
 import { Dialog } from "./dialog";
+import { PasswordInput } from "./password-input";
 
 export function IamAdmin({ view, user }: { view: string; user: Me }) {
   const [editor, setEditor] = useState<User | Role | null | undefined>(
@@ -371,19 +372,21 @@ function UserEditor({
             autoComplete="off"
           />
         </label>
-        <label className="field-label">
-          {value ? "New password" : "Password"}
-          <input
-            className="field"
-            type="password"
+        <div className="field-label">
+          <label htmlFor="account-password">
+            {value ? "New password" : "Password"}
+          </label>
+          <PasswordInput
+            id="account-password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             required={!value}
             minLength={12}
             maxLength={128}
             autoComplete="new-password"
+            visibilityDisabled={busy}
           />
-        </label>
+        </div>
         {value && (
           <label className="flex items-center gap-2 text-sm">
             <input

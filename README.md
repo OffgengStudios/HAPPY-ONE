@@ -1,19 +1,18 @@
 # HAPPY Project Suite
 
-This repository contains the four HAPPY applications as separate top-level projects:
+For the optimized localhost application, see
+[local build and startup](docs/LOCAL-PRODUCTION.md).
 
-- `HAPPY_PLATFORM_CODEX/` - HAPPY Management Platform, API, worker, and internal web application
-- `CV-Parser-main/` - CV parsing service and its dedicated frontend
-- `frontend/` - participant data-collection frontend
-- `portal/` - Employer Acquisition Portal
+The active architecture is UNIJAY participant collection → HAPPY Public API → PostgreSQL → internal Supply, Demand, Matching, Placement and MERL.
 
-The authoritative HAPPY Platform setup, architecture, roadmap, and verification
-instructions are in [`HAPPY_PLATFORM_CODEX/README.md`](HAPPY_PLATFORM_CODEX/README.md).
+- `HAPPY_PLATFORM_CODEX/`: API, internal staff web and durable workers.
+- `CV-Parser-main/cv_system_output/happy_service.py`: private advisory parser; approved suggestions alone update Supply.
+- UNIJAY is a separate repository: `OffgengStudios/UNIJAY-FASHION-DATA-COLLECTION`. The workspace checkout is a sibling of this repository.
+- Private object storage, malware scanning and backup/restore are required operational dependencies.
 
-HAMIS is a public data-collection form with local drafts and no participant
-accounts. Employer Intake collects company/vacancy data for staff review. Both
-submit to the central HAPPY API; the dedicated stateless CV Parser returns
-suggestions requiring human review.
+UNIJAY has no sign-in and sends directly to HAPPY. Employer data is entered by authorized staff. `frontend/`, `portal/` and their adapters are retained legacy code, excluded from the default release. Historical records are preserved.
+
+See [consolidation baseline](docs/UNIJAY-CONSOLIDATION-BASELINE.md), [current progress](docs/UNIJAY-CONSOLIDATION-PROGRESS.md) and [staging preparation](docs/UNIJAY-STAGING-PREPARATION.md).
 
 See the [integration assessment](docs/INTEGRATION-ASSESSMENT.md),
 [API/client contracts](docs/INTEGRATION-CONTRACTS.md),
@@ -21,6 +20,9 @@ See the [integration assessment](docs/INTEGRATION-ASSESSMENT.md),
 [Render staging setup](docs/STAGING-RENDER.md).
 Current test evidence and remaining deployment/UAT gates are recorded in the
 [integration progress report](docs/INTEGRATION-PROGRESS.md).
+Production launch inputs, deployment order and remaining acceptance gates are in
+the [production launch package](docs/PRODUCTION-LAUNCH.md), with a separate
+[`render-production.yaml`](render-production.yaml) candidate.
 
 Build the public frontends from the repository root:
 

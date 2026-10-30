@@ -5,6 +5,7 @@
 .local
 **/node_modules
 **/.next
+**/.next-local-production
 **/__pycache__
 **/*.egg-info
 **/test-results

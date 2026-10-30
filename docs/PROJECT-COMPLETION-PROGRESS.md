@@ -1,0 +1,176 @@
+# HAPPY-ONE completion progress
+
+Baseline: `15facc8272a8cd4329390a988ba0984cf5397452`, migration `0036_vacancy_terms`, readiness audit Level 2/5. Work is sequential; hosted infrastructure and programme approvals remain external requirements. Synthetic test resources are isolated from the original development database/storage.
+
+## P0-01 — VERIFIED, 21 October 2026
+
+### Completed
+
+PostgreSQL dump/restore passwords now enter only the child environment through libpq PGPASSWORD. Connection arguments are constructed without a password; parent environment is unchanged. Client failures discard captured stdout/stderr and expose a safe error without subprocess exception chaining. CLI/scheduler failure rendering is sanitized. Password query parameters and the old credential-bearing --admin-url option are rejected; maintenance credentials come from the private environment.
+
+### Evidence
+
+The audit reproduced a real pg_dump failure disclosing its database password. New regressions additionally execute a child that echoes its environment password into both output streams before failing. Both application and restore-admin cases assert that arguments and rendered errors contain no sentinel. Tests caught SQLAlchemy URL.set(password=None) retaining the old password; the implementation instead creates a new password-free URL.
+
+### Files Changed
+
+- `HAPPY_PLATFORM_CODEX/apps/api/app/db/backup.py`
+- `HAPPY_PLATFORM_CODEX/apps/api/tests/test_backup.py`
+- `HAPPY_PLATFORM_CODEX/docs/39-PRODUCTION-RUNBOOK.md`
+
+### Tests Added/Changed
+
+`apps/api/tests/test_backup.py`: child-only credentials; application/restore-admin failures; safe OS/start failure; successful child; query-password rejection; create/scheduled/restore-latest CLI error output. Existing checksum/catalogue/retention/provider restore tests remain.
+
+### Verification
+
+- `python scripts/api.py test -q -k backup`: **17 passed**, 290 deselected (one dependency deprecation warning).
+- Targeted Ruff lint/format: **passed**. `python scripts/api.py type-check`: **passed**, 127 source files, strict settings unchanged.
+- Real pg_dump, pg_restore catalogue, separate-database restore and failed CLI: **passed**, restored `0036_vacancy_terms`, 14.022 s combined smoke execution. Instrumented subprocess calls contained neither application nor maintenance passwords. Failed real dump exited 1 without password output. Private evidence: workspace `.local/completion-20261020/evidence/p0-backup.json`; no credentials are committed.
+
+### Remaining Risk
+
+Provider backup scheduling, offsite retention, alert delivery and full files/keys disaster recovery remain unverified. Environment credentials remain sensitive and require ordinary operating-system/service access controls. No cloud deployment is claimed.
+
+### Next Task
+
+P0-02: reconcile expired exhausted report claims, preserve live leases, expose authorized controlled retry, verify actual process death/lease expiry/restart and no duplicate output; apply equivalent semantics to retained HAMIS events.
+
+## P0-02 — VERIFIED backend recovery, 21 October 2026
+
+### Completed
+
+Report and retained legacy HAMIS claimers reconcile expired exhausted leases to FAILED / RETRY_LIMIT_EXCEEDED, clear lease state, timestamp completion and append failure audit. Valid leases are excluded. Processing locks and verifies current ownership; failure handling reacquires the lock and cannot overwrite a new owner. Retry endpoints require current permissions, an optimistic version and a reason; reports remain requester-owned and sensitive exports require renewed acknowledgement. A failed report retry form is available in Prepared exports. HAMIS participant sign-in remains absent.
+
+### Evidence
+
+The original audit killed the final-claim process and demonstrated permanent RUNNING/PROCESSING state. The new actual-process regression claims both jobs with one permitted attempt and a 30-second lease, terminates the actual child PID, confirms live leases are untouched, waits 31 seconds, restarts a fresh interpreter, verifies two terminal failure events, retries through authenticated APIs, and verifies one report object and one authoritative participant. Independent concurrent sessions claim distinct pending reports. The first attempted pre-fix regression on 21 October failed during fixture setup because the overnight-stopped database was unavailable; it is not counted as a functional regression result. PostgreSQL was restarted without resetting its data.
+
+### Files Changed
+
+- `HAPPY_PLATFORM_CODEX/apps/api/app/modules/reporting/{worker,routes,schemas,service}.py`
+- `HAPPY_PLATFORM_CODEX/apps/api/app/integrations/hamis/{worker,routes,schemas,service}.py`
+- `HAPPY_PLATFORM_CODEX/apps/api/tests/test_reporting_integration.py`
+- `HAPPY_PLATFORM_CODEX/apps/api/tests/test_worker_crash_integration.py`
+- `HAPPY_PLATFORM_CODEX/apps/web/components/reporting-workspace.tsx`
+- `HAPPY_PLATFORM_CODEX/apps/web/lib/reporting.ts`
+
+### Tests Added/Changed
+
+Reporting integration tests cover expired final failure, current live leases, audited/optimistic retry, non-owner 404 and Marketing 403. `test_worker_crash_integration.py` exercises real PostgreSQL transactions, actual interpreter termination/restart, real elapsed lease expiry, authenticated retries, duplicate rejection, real private S3 export and distinct concurrent claims. No successful scan/parser response is substituted by this crash test.
+
+### Verification
+
+- `python scripts/api.py test -q -k 'reporting or hamis or real_final_claim_process'`: **19 passed**, 291 deselected, 65.50 s pytest / 67.530 s command. Earlier successful execution: 19 passed, 74.85 s.
+- Strict mypy: **passed**, 127 source files. Targeted Ruff: **passed**. Web TypeScript and ESLint: **passed**; changed TS/TSX formatted with Prettier.
+- Evidence: [completion-evidence](completion-evidence/). Full production browser/build gate and direct exercise of the new retry form remain part of the later comprehensive verification.
+
+### Remaining Risk
+
+No hosted restart supervisor, queue alerts or monitoring delivery has been verified yet. Database outage/pool behavior is the later P1-05 task. New retry UI interaction has static checks and backend coverage but awaits browser verification. No staging or production readiness promotion is claimed at this checkpoint.
+
+### Next Task
+
+P1-01: prevent raw search values, callback codes, tokens and unhandled exception messages from entering duplicate access/error logs or exported spans; retain safe request IDs, route templates, status and timing. Verify emitted logs and actual OTLP transport with sentinels.
+
+## P1-01 — VERIFIED application boundary; hosted ingress NOT VERIFIED
+
+### Completed
+
+Structured access logs retain safe matched templates (unknown paths are not logged), correlation, normalized method, status and latency, including 500 failures. The application suppresses raw Uvicorn access logs and sanitizes server exception rendering. Supported API launchers explicitly disable the duplicate access logger. OTLP spans are reconstructed at the export boundary without request URLs/queries/headers, SQL values, events, exception text, unsafe names, links or vendor trace state. Metrics drop unapproved labels and resources use explicit operational metadata.
+
+### Evidence
+
+Audit source evidence showed search and real SSO callback markers in default access logs. New real Uvicorn tests send sentinel searches, callback codes, token queries, unmatched paths and an unhandled exception, then inspect actual server stdout/stderr and actual protobuf OTLP export from that server. Sentinels are absent; safe correlation and statuses remain. A separate deliberately contaminated span tests the real HTTP OTLP serialization boundary; a meter reader verifies identifier/query labels are removed while counts remain.
+
+### Files Changed
+
+- `HAPPY_PLATFORM_CODEX/apps/api/app/core/private_telemetry.py`
+- `HAPPY_PLATFORM_CODEX/apps/api/app/core/{middleware,observability}.py`
+- `HAPPY_PLATFORM_CODEX/apps/api/app/main.py`
+- `HAPPY_PLATFORM_CODEX/scripts/api.py`
+- `HAPPY_PLATFORM_CODEX/infra/deployment/api.Dockerfile`
+- `HAPPY_PLATFORM_CODEX/docs/18-DEVOPS-OBSERVABILITY.md`
+- `HAPPY_PLATFORM_CODEX/apps/api/tests/test_telemetry_privacy.py`
+
+### Tests Added/Changed
+
+Three privacy tests: actual default Uvicorn access/error/application/OTLP output; contaminated span serialized by the real OTLP HTTP exporter; real SDK metric label filtering. Existing health/foundation checks also run.
+
+### Verification
+
+`python scripts/api.py test -q -k 'telemetry_privacy or foundation'`: **6 passed**, 307 deselected, 9.85 s pytest / 11.292 s command. Ruff and strict mypy pass. An earlier test expected a full prefixed route; the installed FastAPI version exposes matched unprefixed templates, so the assertion now checks the safe matched template rather than assuming a library-specific prefix.
+
+### Remaining Risk
+
+Managed ingress access/error logs and external collector/dashboard configuration remain **REQUIRES EXTERNAL INFRASTRUCTURE**. The runbook explicitly gates UAT/real participant data on sentinel checks through the actual public ingress, including an upstream failure. Local exporter checks do not certify Render's logs or alert delivery.
+
+### Next Task
+
+P1-02: neutralize spreadsheet formulas at the shared synchronous/background CSV boundary, preserve numeric/date values, verify actual public input through both exports, and verify spreadsheet interpretation if an application is available.
+
+## P1-02 — VERIFIED, including Microsoft Excel
+
+### Completed
+
+The shared CSV boundary prefixes dangerous text cells with an apostrophe, including formula prefixes after Unicode whitespace/BOM and control-character prefixes. Numbers/Decimal/date values retain their representation, and authoritative stored names remain unchanged. Both immediate and worker exports use the same protection.
+
+### Evidence
+
+Before the fix, eleven regressions failed (ten dangerous-prefix cases plus actual public input flowing to CSV); the existing numeric/date preservation case passed. After the fix, real public intake `first_name='=1+'`, `surname='1'` exports the literal protected cell through both paths, with private download authorization retained. Microsoft Excel 16.0 opened the exact CSV bytes using general import: a harmless unprotected arithmetic control was a formula; all ten protected cells were not formulas; `-12.50` remained a System.Double value of -12.5. Columns were not forced to text. An initial spreadsheet helper accidentally converted CRLF twice on Windows; its control correctly rejected that invalid test setup. The successful test writes the exact HTTP CSV bytes without newline conversion.
+
+### Files Changed
+
+- `HAPPY_PLATFORM_CODEX/apps/api/app/modules/reporting/service.py`
+- `HAPPY_PLATFORM_CODEX/apps/api/tests/test_csv_security.py`
+- `HAPPY_PLATFORM_CODEX/apps/api/tests/test_public_intake_integration.py`
+
+### Tests Added/Changed
+
+Eleven formula/control/Unicode-prefix cases; numeric/Decimal/date/CSV quoting preservation; public submission → synchronous CSV → actual worker/private storage CSV → authorized/anonymous download boundaries. Excel verification evidence and synthetic CSV/control inputs are in `docs/completion-evidence/`.
+
+### Verification
+
+`python scripts/api.py test -q -k 'csv_security or public_formula_input or reporting'`: **21 passed**, 305 deselected, 15.48 s pytest / 17.181 s command. Strict mypy and targeted Ruff pass. Excel automation exited 0, closed its workbooks/application, and recorded zero formulas among protected text cells.
+
+### Remaining Risk
+
+The verification covers Microsoft Excel 16.0 general CSV opening and parser-level representation checks; it does not certify every spreadsheet/import configuration. Large-export capacity is a later task. No programme values or record data were changed to hide formulas.
+
+### Next Task
+
+P1-03: explicitly classify bounded CV/MOU/JD/public multipart requests, accept valid 1 MiB staff documents below the configured maximum, and test oversized/malformed/chunked bodies without introducing an unlimited global body setting.
+
+## P1-03 — VERIFIED application request/file bounds
+
+### Completed
+
+POST upload classification now explicitly includes participant CV, staff partnership documents and staff JDs. Single-file requests permit one configured file plus 256 KiB fields and 64 KiB multipart overhead. Employer intake permits its existing maximum of five individually bounded files plus the same overhead. Ordinary writes retain 512 KiB. No request class is unlimited, Content-Length is not trusted, and shared file validation/scan/private-download rules are unchanged.
+
+### Evidence
+
+Before the fix both valid 1,049,102-byte staff PDF uploads returned 413 and both small configured-limit streamed staff-body tests exceeded the intended upload budget (four failed regressions). After the fix MOU/agreement and JD uploads succeed as SCANNING, including at the exact per-file maximum. One-byte-too-large files, unsupported files and malformed multipart fail safely; infinite streamed bodies stop before reaching application code. The older public body-limit test now sends 512 KiB to exceed the documented metadata/header allowance rather than treating multipart overhead as unlimited file space.
+
+### Files Changed
+
+- `HAPPY_PLATFORM_CODEX/apps/api/app/core/middleware.py`
+- `HAPPY_PLATFORM_CODEX/apps/api/tests/test_request_limits.py`
+- `HAPPY_PLATFORM_CODEX/apps/api/tests/test_demand_integration.py`
+- `HAPPY_PLATFORM_CODEX/apps/api/tests/test_public_intake_integration.py`
+- `HAPPY_PLATFORM_CODEX/docs/39-PRODUCTION-RUNBOOK.md`
+
+### Tests Added/Changed
+
+Five streamed-upload route classes, ordinary JSON cap, real authenticated MOU/JD uploads to private storage, exact file boundary, oversize, unsupported type, malformed multipart. Existing Demand, public intake, scanner-pending and golden integration checks were retained.
+
+### Verification
+
+`python scripts/api.py test -q -k 'demand or request_limits or public_intake'`: **66 passed**, 268 deselected, 43.53 s. Follow-up exact-boundary checks: **8 passed**, 326 deselected, 7.26 s. Ruff and strict mypy pass. Private test objects are removed during teardown; no successful malware scan is fabricated for these large-upload tests.
+
+### Remaining Risk
+
+Hosted proxy/body/concurrency limits must be aligned and verified externally. Actual scanner acceptance and representative upload load remain later tasks. The larger employer aggregate budget is explicitly bounded, and every individual document still obeys FILE_MAX_BYTES.
+
+### Next Task
+
+P1-04: reject malformed Fernet keys at startup without disclosing input secrets; verify application/worker key consistency and document secure generation, escrow and rotation expectations.

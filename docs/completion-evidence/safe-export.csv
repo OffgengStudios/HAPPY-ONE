@@ -1,0 +1,12 @@
+id,code,vacancy,employer,required,started,outstanding
+0,SYNTHETIC,'=1+1,Synthetic only,3,-12.50,1
+1,SYNTHETIC,'+CMD,Synthetic only,3,-12.50,1
+2,SYNTHETIC,'-1+2,Synthetic only,3,-12.50,1
+3,SYNTHETIC,'@SUM(A1:A2),Synthetic only,3,-12.50,1
+4,SYNTHETIC,'	=1+1,Synthetic only,3,-12.50,1
+5,SYNTHETIC,"'=1+1",Synthetic only,3,-12.50,1
+6,SYNTHETIC,"'
+=1+1",Synthetic only,3,-12.50,1
+7,SYNTHETIC,'  =1+1,Synthetic only,3,-12.50,1
+8,SYNTHETIC,'﻿=1+1,Synthetic only,3,-12.50,1
+9,SYNTHETIC,'	@SUM(A1:A2),Synthetic only,3,-12.50,1

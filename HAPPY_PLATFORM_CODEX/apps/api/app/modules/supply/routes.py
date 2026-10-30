@@ -92,7 +92,7 @@ def participants(
             query = query.where(column == value)
     page = page_query(query, Participant, db, limit, cursor)
     return {
-        "items": [s.participant_view(db, row) for row in page["rows"]],
+        "items": s.participant_views(db, page["rows"]),
         "next_cursor": page["next_cursor"],
     }
 
@@ -223,6 +223,47 @@ def state(
 @router.get("/participants/{identifier}/readiness")
 def readiness(identifier: UUID, db: Database, actor: Read) -> dict[str, Any]:
     return s.participant_view(db, get_record(db, Participant, identifier))
+
+
+@router.get("/participants/{identifier}/lifecycle-summary")
+def lifecycle_summary(identifier: UUID, db: Database, actor: Read) -> dict[str, Any]:
+    from app.modules.placement.models import Placement
+    from app.modules.training.models import TrainingAttendance
+
+    row = get_record(db, Participant, identifier)
+    result: dict[str, Any] = {"onboarding": row.onboarding_status}
+    if "outcome:view" in actor.permissions:
+        from app.modules.merl.models import Outcome
+
+        latest = db.scalar(
+            select(Outcome)
+            .where(Outcome.participant_id == identifier, Outcome.archived_at.is_(None))
+            .order_by(Outcome.as_of_date.desc(), Outcome.created_at.desc(), Outcome.id.desc())
+            .limit(1)
+        )
+        result["employment_outcome"] = (
+            "WORKING"
+            if latest and latest.currently_working
+            else "NOT_WORKING"
+            if latest
+            else "NOT_RECORDED"
+        )
+    for key, model, column, permission in (
+        ("training", TrainingAttendance, TrainingAttendance.completion_status, "training:view"),
+        ("placement", Placement, Placement.status, "placement:view"),
+    ):
+        result[key] = (
+            dict(
+                db.execute(
+                    select(column, func.count())
+                    .where(model.participant_id == identifier, model.archived_at.is_(None))
+                    .group_by(column)
+                ).all()
+            )
+            if permission in actor.permissions
+            else None
+        )
+    return result
 
 
 @router.post("/participants/{identifier}/readiness")
