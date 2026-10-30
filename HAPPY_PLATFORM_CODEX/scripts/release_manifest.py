@@ -95,9 +95,7 @@ def main() -> None:
         "release_version": (ROOT / "VERSION").read_text().strip(),
         "parser": {
             "happy_sha": happy,
-            "tree_sha": git(
-                REPOSITORY, "rev-parse", "HEAD:CV-Parser-main/cv_system_output"
-            ),
+            "tree_sha": git(REPOSITORY, "rev-parse", "HEAD:CV-Parser-main/cv_system_output"),
         },
         "deployment_definition": relative,
         "deployment_sha256": hashlib.sha256(definition.read_bytes()).hexdigest(),
