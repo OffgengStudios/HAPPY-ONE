@@ -202,15 +202,18 @@ def test_restore_latest_downloads_provider_archive_and_runs_isolated_restore(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     client = MagicMock()
-    client.list_objects_v2.return_value = {
-        "Contents": [
-            {
-                "Key": "database/older.dump",
-                "LastModified": datetime.now(UTC) - timedelta(days=1),
-            },
-            {"Key": "database/latest.dump", "LastModified": datetime.now(UTC)},
-        ]
-    }
+    client.get_paginator.return_value.paginate.return_value = [
+        {
+            "Contents": [
+                {
+                    "Key": "database/older.dump",
+                    "LastModified": datetime.now(UTC) - timedelta(days=1),
+                },
+                {"Key": "database/latest.dump", "LastModified": datetime.now(UTC)},
+                {"Key": "database/latest.dump.json", "LastModified": datetime.now(UTC)},
+            ]
+        }
+    ]
     monkeypatch.setattr(backup.settings, "backup_s3_bucket", "happy-backups")
     monkeypatch.setattr(backup.settings, "backup_s3_prefix", "database/")
     monkeypatch.setattr(
@@ -222,10 +225,24 @@ def test_restore_latest_downloads_provider_archive_and_runs_isolated_restore(
     monkeypatch.setattr(backup, "restore_test", lambda archive, admin_url: "0031_oidc_sso")
     monkeypatch.setattr(backup, "alert", MagicMock())
 
+    def download(bucket, key, target):
+        if key.endswith(".json"):
+            Path(target).write_text(
+                json.dumps({"sha256": backup.hashlib.sha256(b"synthetic").hexdigest()})
+            )
+        else:
+            Path(target).write_bytes(b"synthetic")
+
+    client.download_file.side_effect = download
+    monkeypatch.setattr(
+        backup, "run", MagicMock(return_value=MagicMock(stdout="TABLE alembic_version"))
+    )
+
     revision = backup.restore_latest()
 
     assert revision == "0031_oidc_sso"
     assert client.download_file.call_count == 2
+    assert client.download_file.call_args_list[0].args[1] == "database/latest.dump"
 
 
 @pytest.mark.parametrize("action", ["create", "scheduled", "restore-test", "restore-latest"])
@@ -272,10 +289,14 @@ def test_backup_and_restore_entrypoints_keep_sentinel_private(
     ]
     monkeypatch.setattr(backup, "create_engine", lambda *args, **kwargs: engine)
     storage = MagicMock()
-    storage.get_paginator.return_value.paginate.return_value = []
-    storage.list_objects_v2.return_value = {
-        "Contents": [{"Key": "database/synthetic.dump", "LastModified": datetime.now(UTC)}]
-    }
+    storage.get_paginator.return_value.paginate.return_value = [
+        {
+            "Contents": [
+                {"Key": "database/synthetic.dump", "LastModified": datetime.now(UTC)},
+                {"Key": "database/synthetic.dump.json", "LastModified": datetime.now(UTC)},
+            ]
+        }
+    ]
 
     def download(bucket, key, target):
         if key.endswith(".json"):

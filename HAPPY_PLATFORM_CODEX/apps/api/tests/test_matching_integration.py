@@ -100,6 +100,8 @@ def parents(db: Session, user: User, *, complete: bool = False) -> tuple[Partici
         phone_raw="0241234567",
         phone_normalized="+23324" + token[:7],
         community="Accra",
+        government_id_type="GHANA_CARD",
+        government_id_ciphertext="synthetic-protected-identity-fixture",
         created_by=user.id,
     )
     db.add(person)

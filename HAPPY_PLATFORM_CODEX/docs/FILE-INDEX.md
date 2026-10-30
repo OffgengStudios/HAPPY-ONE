@@ -64,3 +64,7 @@ Use the revised [roadmap](20-IMPLEMENTATION-ROADMAP.md) for current phase number
 - `AGENTS.md` — 1,177 bytes
 - `README.md` — 2,986 bytes
 - `spec-manifest.json` — 722 bytes
+
+## Participant lifecycle implementation
+
+- [52-PARTICIPANT-LIFECYCLE.md](52-PARTICIPANT-LIFECYCLE.md) — current onboarding, identity, age, training, placement and programme-report behavior.

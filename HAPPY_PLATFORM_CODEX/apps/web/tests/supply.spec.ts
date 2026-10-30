@@ -1,4 +1,4 @@
-import { expect, Page, test } from "@playwright/test";
+import { expect, Page, test, request } from "@playwright/test";
 import { navigate } from "./navigation";
 
 const password = process.env.HAPPY_E2E_PASSWORD;
@@ -57,7 +57,7 @@ test("onboarding autosave queues in-flight edits and recovers an offline draft",
 }, info) => {
   await login(page);
   const row = await newDraft(page, "Autosave " + info.project.name);
-  await page.getByRole("tab", { name: "Basic", exact: true }).click();
+  await onboardingSection(page, "Basic");
   await page.getByRole("button", { name: "Edit basic", exact: true }).click();
   let dialog = page.getByRole("dialog", {
     name: "Edit basic details",
@@ -101,7 +101,7 @@ test("onboarding autosave queues in-flight edits and recovers an offline draft",
   ).json();
   expect(persisted.other_names).toBe("Latest revision");
   await dialog.getByRole("button", { name: "Done", exact: true }).click();
-  await page.getByRole("tab", { name: "Contact", exact: true }).click();
+  await onboardingSection(page, "Contact");
   await page.getByRole("button", { name: "Edit contact", exact: true }).click();
   dialog = page.getByRole("dialog", { name: "Edit contact", exact: true });
   await page.context().setOffline(true);
@@ -123,7 +123,7 @@ test("onboarding autosave queues in-flight edits and recovers an offline draft",
   ).json();
   expect(persisted.directions).toBe("Offline draft retained in memory");
   await dialog.getByRole("button", { name: "Done", exact: true }).click();
-  await page.getByRole("tab", { name: "Education", exact: true }).click();
+  await onboardingSection(page, "Education");
   await page
     .getByRole("button", { name: "Edit education", exact: true })
     .click();
@@ -152,7 +152,7 @@ test("draft validation retains edits and a version conflict cannot overwrite ano
 }, info) => {
   await login(page);
   const row = await newDraft(page, "Conflict " + info.project.name);
-  await page.getByRole("tab", { name: "Contact", exact: true }).click();
+  await onboardingSection(page, "Contact");
   await page.getByRole("button", { name: "Edit contact", exact: true }).click();
   let dialog = page.getByRole("dialog", { name: "Edit contact", exact: true });
   const invalid = sectionSaved(page, row.id, "contact");
@@ -173,7 +173,7 @@ test("draft validation retains edits and a version conflict cannot overwrite ano
   expect((await fixed).status()).toBe(200);
   await expect(dialog.getByRole("status")).toHaveText("Saved");
   await dialog.getByRole("button", { name: "Done", exact: true }).click();
-  await page.getByRole("tab", { name: "Basic", exact: true }).click();
+  await onboardingSection(page, "Basic");
   await page.getByRole("button", { name: "Edit basic", exact: true }).click();
   dialog = page.getByRole("dialog", {
     name: "Edit basic details",
@@ -395,7 +395,7 @@ test("private CV approval and download preserve the current version when a new s
     ]),
   );
   for (const section of ["Basic", "Contact"]) {
-    await page.getByRole("tab", { name: section, exact: true }).click();
+    await onboardingSection(page, section);
     await page
       .getByRole("button", {
         name: "Edit " + section.toLowerCase(),
@@ -407,7 +407,7 @@ test("private CV approval and download preserve the current version when a new s
       section === "Basic" ? "Edit basic details" : "Edit contact",
     );
   }
-  await page.getByRole("tab", { name: "Consent", exact: true }).click();
+  await onboardingSection(page, "Consent");
   await page
     .getByRole("button", { name: "Record consent", exact: true })
     .click();
@@ -415,7 +415,7 @@ test("private CV approval and download preserve the current version when a new s
   await dialog.getByLabel("Consented (Ghana time)").fill("2026-10-01T09:00");
   await dialog.getByLabel("Participant agreed to the recorded notice").check();
   await save(page, "Record consent");
-  await page.getByRole("tab", { name: "Review", exact: true }).click();
+  await onboardingSection(page, "Review");
   await page
     .getByRole("button", { name: "Record review", exact: true })
     .click();
@@ -489,6 +489,7 @@ test("Supply staff completes progressive onboarding and withdraws consent", asyn
   );
   await save(page, "New participant");
   const participantId = (await (await created).json()).id;
+  await recordSyntheticIdentity(page, participantId);
   await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Call", exact: true }),
@@ -499,7 +500,7 @@ test("Supply staff completes progressive onboarding and withdraws consent", asyn
   await expect(
     page.getByRole("button", { name: "Complete onboarding", exact: true }),
   ).toBeDisabled();
-  await page.getByRole("tab", { name: "Education", exact: true }).click();
+  await onboardingSection(page, "Education");
   await page
     .getByRole("button", { name: "Edit education", exact: true })
     .click();
@@ -514,7 +515,7 @@ test("Supply staff completes progressive onboarding and withdraws consent", asyn
   await expect(
     page.getByText("Synthetic School", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("tab", { name: "Employment", exact: true }).click();
+  await onboardingSection(page, "Employment");
   await page
     .getByRole("button", { name: "Edit employment", exact: true })
     .click();
@@ -528,7 +529,7 @@ test("Supply staff completes progressive onboarding and withdraws consent", asyn
   await expect(
     page.getByText("Customer service", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("tab", { name: "Consent", exact: true }).click();
+  await onboardingSection(page, "Consent");
   await page
     .getByRole("button", { name: "Record consent", exact: true })
     .click();
@@ -542,7 +543,7 @@ test("Supply staff completes progressive onboarding and withdraws consent", asyn
   await expect(
     page.getByText("programme consent", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("tab", { name: "Review", exact: true }).click();
+  await onboardingSection(page, "Review");
   await page
     .getByRole("button", { name: "Record review", exact: true })
     .click();
@@ -643,7 +644,7 @@ test("Supply staff completes progressive onboarding and withdraws consent", asyn
     .getByRole("region", { name: "Overdue", exact: true })
     .getByRole("button", { name: name, exact: false })
     .click();
-  await page.getByRole("tab", { name: "Consent", exact: true }).click();
+  await onboardingSection(page, "Consent");
   await page.getByRole("button", { name: "Withdraw", exact: true }).click();
   dialog = page.getByRole("dialog", { name: "Withdraw consent" });
   await dialog
@@ -821,3 +822,58 @@ test("Supply staff reviews advisory CV parser suggestions without automatic over
     ),
   ).toBe(true);
 });
+
+async function onboardingSection(page: Page, section: string) {
+  const primary = page.getByRole("tab", { name: "Onboarding", exact: true });
+  if ((await primary.getAttribute("aria-selected")) !== "true")
+    await primary.click();
+  const label =
+    section === "Basic"
+      ? "Registration & names"
+      : section === "Employment"
+        ? "Baseline employment"
+        : section;
+  await page
+    .getByRole("navigation", { name: "Onboarding sections", exact: true })
+    .getByRole("button", { name: label, exact: true })
+    .click();
+}
+
+async function recordSyntheticIdentity(page: Page, identifier: string) {
+  const origin = new URL(page.url()).origin;
+  const admin = await request.newContext({ baseURL: origin });
+  try {
+    expect(
+      (
+        await admin.post("/api/v1/auth/login", {
+          headers: { Origin: origin },
+          data: { email: "admin@example.org", password: password! },
+        })
+      ).status(),
+    ).toBe(200);
+    const token = (await admin.storageState()).cookies.find(
+      (cookie) => cookie.name === "happy_csrf",
+    )!.value;
+    const participant = await (
+      await admin.get(`/api/v1/participants/${identifier}`)
+    ).json();
+    expect(
+      (
+        await admin.patch(`/api/v1/participants/${identifier}/identity`, {
+          headers: { Origin: origin, "X-CSRF-Token": token },
+          data: {
+            version: participant.version,
+            government_id_type: "GHANA_CARD",
+            government_id: "SYNTHETIC-GHANA-" + identifier,
+          },
+        })
+      ).status(),
+    ).toBe(200);
+    await admin.post("/api/v1/auth/logout", {
+      headers: { Origin: origin, "X-CSRF-Token": token },
+    });
+  } finally {
+    await admin.dispose();
+  }
+  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+}

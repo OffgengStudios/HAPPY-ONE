@@ -11,7 +11,30 @@ from app.modules.iam.schemas import Input
 Frequency = Literal["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"]
 
 
-class PlacementCreate(Input):
+class PlacementDetails(Input):
+    placed_by_partner: Annotated[str, Field(max_length=150)] | None = None
+    placement_region: Annotated[str, Field(max_length=60)] | None = None
+    placement_district: Annotated[str, Field(max_length=60)] | None = None
+    placement_community: Annotated[str, Field(max_length=150)] | None = None
+    sector: Annotated[str, Field(max_length=60)] | None = None
+    industry: Annotated[str, Field(max_length=60)] | None = None
+    job_type: Annotated[str, Field(max_length=60)] | None = None
+    job_role: Annotated[str, Field(max_length=150)] | None = None
+    employment_type: Literal["WAGE", "SELF"] | None = None
+    employment_category: Literal["NEW", "IMPROVED", "ADDITIONAL"] | None = None
+    employer_name: Annotated[str, Field(max_length=200)] | None = None
+    contract_type: Annotated[str, Field(max_length=60)] | None = None
+    work_hours: Decimal | None = Field(default=None, ge=0, le=168, decimal_places=2)
+    work_hours_period: Literal["WEEK"] | None = None
+
+    @model_validator(mode="after")
+    def hours(self) -> Self:
+        if self.work_hours is not None and not self.work_hours_period:
+            raise ValueError("Specify the work-hours period.")
+        return self
+
+
+class PlacementCreate(PlacementDetails):
     candidate_vacancy_id: UUID
     candidate_version: int | None = Field(default=None, ge=1)
     expected_start_date: date | None = None
@@ -28,6 +51,8 @@ class PlacementCreate(Input):
 
     @model_validator(mode="after")
     def schedule(self) -> Self:
+        if self.salary_amount is not None and not self.salary_frequency:
+            raise ValueError("Placement income requires its frequency.")
         if self.payroll_frequency == "MONTHLY" and self.payroll_day:
             self.payday_rule_json = {
                 "day": self.payroll_day,
@@ -38,7 +63,11 @@ class PlacementCreate(Input):
         return self
 
 
-class PlacementPatch(Version):
+class PlacementDetailsWrite(PlacementDetails, Version):
+    reason: Text
+
+
+class PlacementPatch(PlacementDetails, Version):
     expected_start_date: date | None = None
     salary_amount: Decimal | None = Field(default=None, ge=0, decimal_places=2)
     salary_currency: Annotated[str, Field(pattern=r"^[A-Z]{3}$")] = "GHS"
@@ -49,6 +78,12 @@ class PlacementPatch(Version):
     exception_reason: Text | None = None
     owner_id: UUID | None = None
     reason: Text
+
+    @model_validator(mode="after")
+    def pay(self) -> Self:
+        if self.salary_amount is not None and not self.salary_frequency:
+            raise ValueError("Placement income requires its frequency.")
+        return self
 
 
 class Start(Input):

@@ -10,10 +10,12 @@ from starlette.responses import Response, StreamingResponse
 from app.core.config import settings
 from app.core.errors import ApiError
 from app.modules.iam.dependencies import Database, Principal, require
+from app.modules.iam.models import now
 from app.modules.iam.service import audit
 from app.modules.marketing.models import Campaign
 from app.modules.merl.models import DataQualityIssue, FollowUp
 from app.modules.placement.models import FirstIncomeVerification, Placement
+from app.modules.reporting import programme
 from app.modules.reporting import schemas as data
 from app.modules.reporting import service as s
 from app.modules.reporting.models import ReportExportJob, ReportTarget
@@ -121,6 +123,75 @@ def dashboard(date_from: date, date_to: date, db: Database, actor: Read) -> dict
             or 0,
         },
     }
+
+
+@router.get("/reports/programme")
+def programme_report(date_from: date, date_to: date, db: Database, actor: Read) -> dict[str, Any]:
+    if "participant:view" not in actor.permissions:
+        raise ApiError(403, "PERMISSION_DENIED", "Participant access is required.")
+    period(date_from, date_to)
+    result = programme.build(db, date_from, date_to)
+    return {key: result[key] for key in ("counts", "issues", "notes")}
+
+
+@router.get("/reports/programme/export")
+def programme_export(
+    date_from: date,
+    date_to: date,
+    db: Database,
+    actor: Export,
+    request: Request,
+    include_sensitive: bool = False,
+    privacy_acknowledged: bool = False,
+    include_identity_numbers: bool = False,
+) -> Response:
+    if "participant:view" not in actor.permissions:
+        raise ApiError(403, "PERMISSION_DENIED", "Participant access is required.")
+    if (
+        include_sensitive
+        and not {"report:sensitive_export", "participant_sensitive:view"} <= actor.permissions
+    ):
+        raise ApiError(403, "PERMISSION_DENIED", "Sensitive programme export is not permitted.")
+    if include_sensitive and not privacy_acknowledged:
+        raise ApiError(422, "PRIVACY_ACKNOWLEDGEMENT_REQUIRED", "Acknowledge the sensitive export.")
+    if include_identity_numbers and not include_sensitive:
+        raise ApiError(
+            422, "SENSITIVE_EXPORT_REQUIRED", "Identity numbers require sensitive export."
+        )
+    period(date_from, date_to)
+    result = programme.build(db, date_from, date_to, include_sensitive, include_identity_numbers)
+    result["notes"] = [
+        *result["notes"],
+        f"Period: {date_from} to {date_to}",
+        f"Prepared by: {actor.user.full_name}",
+        f"Report revision generated: {now().isoformat()}",
+    ]
+    content = programme.workbook(result)
+    audit(
+        db,
+        "report.exported",
+        actor.audit_actor,
+        "report",
+        None,
+        request,
+        changes={
+            "report": "PROGRAMME",
+            "date_from": str(date_from),
+            "date_to": str(date_to),
+            "include_sensitive": include_sensitive,
+            "include_identity_numbers": include_identity_numbers,
+            "counts": result["counts"],
+        },
+    )
+    db.commit()
+    return Response(
+        content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": 'attachment; filename="happy-programme.xlsx"',
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 @router.get("/reports/kpis")

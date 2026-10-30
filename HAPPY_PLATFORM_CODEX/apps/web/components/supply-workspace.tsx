@@ -35,6 +35,7 @@ import {
 } from "@/lib/supply";
 import { DemandForm, Editor } from "./demand-form";
 import { Dialog } from "./dialog";
+import { ParticipantLifecycle } from "./participant-lifecycle";
 import { CvParserPanel } from "./cv-parser-panel";
 import { SupplyCollections } from "./supply-collections";
 
@@ -85,13 +86,24 @@ function Summary({
             {key.replaceAll("_", " ").replace(" raw", "").replace(" code", "")}
           </dt>
           <dd className="break-words text-sm">
-            {key.endsWith("_at")
-              ? time(row[key] as string | null)
-              : typeof row[key] === "boolean"
-                ? row[key]
-                  ? "Yes"
-                  : "No"
-                : String(row[key] ?? "Not recorded")}
+            {key === "age_at_onboarding" &&
+            row.onboarding_age_projected &&
+            typeof row[key] === "number"
+              ? `${row[key]} (projected)`
+              : key.endsWith("_at")
+                ? time(row[key] as string | null)
+                : typeof row[key] === "boolean"
+                  ? row[key]
+                    ? "Yes"
+                    : "No"
+                  : typeof row[key] === "object" && row[key] !== null
+                    ? Object.entries(row[key] as Record<string, unknown>)
+                        .map(
+                          ([status, count]) =>
+                            `${status.replaceAll("_", " ")}: ${count}`,
+                        )
+                        .join(", ") || "None recorded"
+                    : String(row[key] ?? "Not recorded")}
           </dd>
         </div>
       ))}
@@ -642,7 +654,13 @@ function ParticipantDetail({
   const sensitiveQuery = useQuery({
     queryKey: ["supply", "sensitive", identifier],
     queryFn: () => api<Record<string, unknown>>(path + "/sensitive"),
-    enabled: tab === "Sensitive" && can("participant_sensitive:view"),
+    enabled:
+      ["Sensitive", "Overview"].includes(tab) &&
+      can("participant_sensitive:view"),
+  });
+  const lifecycle = useQuery({
+    queryKey: ["supply", "lifecycle-summary", identifier],
+    queryFn: () => api<Record<string, unknown>>(path + "/lifecycle-summary"),
   });
   const childQuery = useQuery({
     queryKey: ["supply", "children", identifier, tab],
@@ -658,8 +676,7 @@ function ParticipantDetail({
   });
   const row = query.data;
   const editable = can("participant:edit") && !row?.archived_at;
-  const tabs = [
-    "Overview",
+  const onboardingTabs = [
     "Basic",
     "Contact",
     "Education",
@@ -667,8 +684,15 @@ function ParticipantDetail({
     "Training",
     "Review",
     "Consent",
-    ...(can("cv:view") ? ["Documents"] : []),
     ...(can("participant_sensitive:view") ? ["Sensitive"] : []),
+  ];
+  const activeStage = onboardingTabs.includes(tab) ? "Onboarding" : tab;
+  const tabs = [
+    "Overview",
+    "Onboarding",
+    "Capacity Building",
+    "Placements & Employment",
+    ...(can("cv:view") ? ["Documents"] : []),
     "Activity",
   ];
   function edit(
@@ -863,18 +887,21 @@ function ParticipantDetail({
             {tabs.map((name) => (
               <button
                 role="tab"
-                id={"supply-tab-" + name}
+                id={
+                  "supply-tab-" +
+                  name.replaceAll(" ", "-").replaceAll("&", "and")
+                }
                 aria-controls="supply-panel"
-                aria-selected={tab === name}
+                aria-selected={activeStage === name}
                 key={name}
                 className={
                   "border-b-2 px-3 py-3 text-sm " +
-                  (tab === name
+                  (activeStage === name
                     ? "border-primary text-primary"
                     : "border-transparent text-muted")
                 }
                 onClick={() => {
-                  setTab(name);
+                  setTab(name === "Onboarding" ? "Basic" : name);
                   setActionError("");
                 }}
               >
@@ -890,8 +917,67 @@ function ParticipantDetail({
           <div
             role="tabpanel"
             id="supply-panel"
-            aria-labelledby={"supply-tab-" + tab}
+            aria-labelledby={
+              "supply-tab-" +
+              activeStage.replaceAll(" ", "-").replaceAll("&", "and")
+            }
           >
+            {tab === "Overview" && (
+              <section className="mb-6 space-y-4">
+                <Summary
+                  row={lifecycle.data ?? {}}
+                  keys={[
+                    "onboarding",
+                    "training",
+                    "placement",
+                    "employment_outcome",
+                  ]}
+                />
+                {sensitiveQuery.data && (
+                  <Summary
+                    row={sensitiveQuery.data}
+                    keys={[
+                      "current_age",
+                      "age_reference_date",
+                      "age_at_onboarding",
+                      "has_ghana_card",
+                      "has_voter_id",
+                    ]}
+                  />
+                )}
+              </section>
+            )}
+            {activeStage === "Onboarding" && (
+              <nav
+                aria-label="Onboarding sections"
+                className="mb-5 flex flex-wrap gap-2"
+              >
+                {onboardingTabs.map((section) => (
+                  <button
+                    key={section}
+                    className={"command " + (tab === section ? "primary" : "")}
+                    aria-current={tab === section ? "step" : undefined}
+                    onClick={() => setTab(section)}
+                  >
+                    {section === "Sensitive"
+                      ? "Identity & inclusion"
+                      : section === "Basic"
+                        ? "Registration & names"
+                        : section === "Employment"
+                          ? "Baseline employment"
+                          : section}
+                  </button>
+                ))}
+              </nav>
+            )}
+            {["Capacity Building", "Placements & Employment"].includes(tab) && (
+              <ParticipantLifecycle
+                stage={tab}
+                row={row}
+                user={user}
+                onEditor={onEditor}
+              />
+            )}
             {["Overview", "Basic", "Contact", "Training", "Review"].includes(
               tab,
             ) && (
@@ -953,6 +1039,8 @@ function ParticipantDetail({
                             "surname",
                             "other_names",
                             "implementing_partner",
+                            "onboarding_date",
+                            "support_type",
                           ]
                         : tab === "Contact"
                           ? [
@@ -1011,7 +1099,57 @@ function ParticipantDetail({
                     {row.missing_fields.length > 0 && (
                       <p className="mt-4 break-words text-sm text-amber-800">
                         Missing fields:{" "}
-                        {row.missing_fields.map(label).join(", ")}
+                        {row.missing_fields.map((field) => (
+                          <button
+                            key={field}
+                            className="underline mr-3"
+                            onClick={() =>
+                              setTab(
+                                [
+                                  "ghana_card",
+                                  "government_id",
+                                  "date_of_birth",
+                                  "sex",
+                                  "nationality",
+                                  "disability_specify",
+                                ].includes(field) &&
+                                  can("participant_sensitive:view")
+                                  ? "Sensitive"
+                                  : [
+                                        "phone_raw",
+                                        "email",
+                                        "region_code",
+                                        "district_code",
+                                        "community",
+                                        "location_status",
+                                        "directions",
+                                      ].includes(field)
+                                    ? "Contact"
+                                    : [
+                                          "employment_status",
+                                          "current_occupation",
+                                          "sector_code",
+                                          "industry_code",
+                                          "job_type",
+                                          "job_role",
+                                          "work_region_code",
+                                          "work_district_code",
+                                          "work_community",
+                                        ].includes(field)
+                                      ? "Employment"
+                                      : field === "training_summary"
+                                        ? "Training"
+                                        : "Basic",
+                              )
+                            }
+                          >
+                            {field === "ghana_card"
+                              ? can("participant_sensitive:edit")
+                                ? "Ghana Card (required)"
+                                : "Ghana Card — authorized staff required"
+                              : label(field)}
+                          </button>
+                        ))}
                       </p>
                     )}
                     {editable && (
@@ -1217,7 +1355,7 @@ function ParticipantDetail({
                                 },
                                 {
                                   key: "government_id",
-                                  label: "Identity reference",
+                                  label: "Ghana Card / Voter’s ID Number",
                                   type: "password",
                                   required: true,
                                   max: 80,
@@ -1228,7 +1366,7 @@ function ParticipantDetail({
                           }
                         >
                           <ShieldCheck className="h-4 w-4" />
-                          Identity
+                          Ghana Card / Voter’s ID
                         </button>
                       </div>
                     )}
@@ -1240,7 +1378,16 @@ function ParticipantDetail({
                         "sex",
                         "nationality",
                         "government_id_type",
-                        "has_government_id",
+                        "has_ghana_card",
+                        "has_voter_id",
+                        "current_age",
+                        "age_at_onboarding",
+                        "age_reference_date",
+                        "age_category_status",
+                        "baseline_employment_status",
+                        "baseline_occupation",
+                        "baseline_income_amount",
+                        "baseline_income_frequency",
                         ...sensitiveFields.map((field) => field.key),
                       ]}
                     />

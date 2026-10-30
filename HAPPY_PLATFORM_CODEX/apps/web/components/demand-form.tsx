@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { LoaderCircle, RefreshCw, Save } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { Field } from "@/lib/demand";
+import { PasswordInput } from "./password-input";
 import { Dialog } from "./dialog";
 import { useDraftSave } from "@/lib/use-draft-save";
 import { DraftStatus } from "./draft-status";
@@ -33,14 +34,23 @@ export function DemandForm({
   const [values, setValues] = useState<Record<string, unknown>>(() =>
     Object.fromEntries(
       editor.fields.map((field) => {
-        const value = editor.initial?.[field.key];
+        const [parent, child] = field.key.split(".");
+        const value = child
+          ? (editor.initial?.[parent] as Record<string, unknown> | undefined)?.[
+              child
+            ]
+          : editor.initial?.[field.key];
         return [
           field.key,
-          field.type === "json"
-            ? JSON.stringify(value ?? true)
-            : field.type === "datetime-local" && typeof value === "string"
-              ? value.slice(0, 16)
-              : (value ?? (field.type === "checkbox" ? false : "")),
+          field.type === "list"
+            ? Array.isArray(value)
+              ? value.join("\n")
+              : ""
+            : field.type === "json"
+              ? JSON.stringify(value ?? true)
+              : field.type === "datetime-local" && typeof value === "string"
+                ? value.slice(0, 16)
+                : (value ?? (field.type === "checkbox" ? false : "")),
         ];
       }),
     ),
@@ -51,21 +61,36 @@ export function DemandForm({
   function body() {
     const result: Record<string, unknown> = { ...editor.extra };
     for (const field of editor.fields) {
+      if (field.uiOnly) continue;
       const value = values[field.key];
       result[field.key] =
         field.type === "checkbox"
           ? Boolean(value)
-          : value === ""
-            ? null
-            : field.type === "number"
-              ? Number(value)
-              : field.type === "json"
-                ? JSON.parse(String(value))
-                : field.type === "datetime-local"
-                  ? String(value) + ":00Z"
-                  : field.key === "accommodation_available"
-                    ? value === "true"
-                    : value;
+          : field.type === "list"
+            ? String(value ?? "")
+                .split(/\n/)
+                .map((item) => item.trim())
+                .filter(Boolean)
+            : value === ""
+              ? null
+              : field.type === "number"
+                ? Number(value)
+                : field.type === "json"
+                  ? JSON.parse(String(value))
+                  : field.type === "datetime-local"
+                    ? String(value) + ":00Z"
+                    : field.key === "accommodation_available"
+                      ? value === "true"
+                      : value;
+    }
+    for (const key of Object.keys(result)) {
+      if (!key.includes(".")) continue;
+      const [parent, child] = key.split(".");
+      result[parent] = {
+        ...((result[parent] as Record<string, unknown>) ?? {}),
+        [child]: result[key],
+      };
+      delete result[key];
     }
     return result;
   }
@@ -118,93 +143,125 @@ export function DemandForm({
       <form ref={draft.form} className="space-y-5 p-5" onSubmit={submit}>
         {editor.autosave && <DraftStatus {...draft} />}
         <div className="grid gap-4 sm:grid-cols-2">
-          {editor.fields.map((field) => (
-            <label
-              key={field.key}
-              className={
-                "field-label min-w-0 " +
-                (["textarea", "json"].includes(field.type ?? "")
-                  ? "sm:col-span-2"
-                  : "")
-              }
-            >
-              {field.type === "checkbox" ? (
-                <span className="flex min-h-10 items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(values[field.key])}
-                    disabled={busy}
-                    onChange={(event) =>
-                      setValues({
-                        ...values,
-                        [field.key]: event.target.checked,
-                      })
-                    }
-                  />
-                  {field.label}
-                </span>
-              ) : (
-                <>
-                  {field.label}
-                  {field.type === "select" ? (
-                    <select
-                      className="field"
-                      required={field.required}
-                      disabled={busy}
-                      value={String(values[field.key] ?? "")}
-                      onChange={(event) =>
-                        setValues({
-                          ...values,
-                          [field.key]: event.target.value,
-                        })
-                      }
-                    >
-                      <option value="">Not assigned</option>
-                      {field.options?.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  ) : field.type === "textarea" || field.type === "json" ? (
-                    <textarea
-                      className="field min-h-24"
-                      required={field.required}
-                      disabled={busy}
-                      maxLength={field.max}
-                      value={String(values[field.key] ?? "")}
-                      onChange={(event) =>
-                        setValues({
-                          ...values,
-                          [field.key]: event.target.value,
-                        })
-                      }
-                    />
-                  ) : (
+          {editor.fields
+            .filter(
+              (field) =>
+                !field.showWhen ||
+                String(
+                  values[field.showWhen.key] ??
+                    editor.initial?.[field.showWhen.key],
+                ).toUpperCase() === field.showWhen.value.toUpperCase(),
+            )
+            .map((field) => (
+              <label
+                key={field.key}
+                className={
+                  "field-label min-w-0 " +
+                  (["textarea", "json", "list"].includes(field.type ?? "")
+                    ? "sm:col-span-2"
+                    : "")
+                }
+              >
+                {field.type === "checkbox" ? (
+                  <span className="flex min-h-10 items-center gap-2">
                     <input
-                      className="field"
-                      type={field.type ?? "text"}
-                      required={field.required}
+                      type="checkbox"
+                      checked={Boolean(values[field.key])}
                       disabled={busy}
-                      min={field.type === "number" ? field.min : undefined}
-                      max={field.type === "number" ? field.max : undefined}
-                      maxLength={
-                        field.type === "number" ? undefined : field.max
-                      }
-                      step={field.step}
-                      value={String(values[field.key] ?? "")}
                       onChange={(event) =>
                         setValues({
                           ...values,
-                          [field.key]: event.target.value,
+                          [field.key]: event.target.checked,
                         })
                       }
                     />
-                  )}
-                </>
-              )}
-            </label>
-          ))}
+                    {field.label}
+                    {field.required && (
+                      <span aria-hidden="true" className="text-red-700">
+                        {" "}
+                        *
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <>
+                    {field.label}
+                    {field.type === "select" ? (
+                      <select
+                        className="field"
+                        required={field.required}
+                        disabled={busy}
+                        value={String(values[field.key] ?? "")}
+                        onChange={(event) =>
+                          setValues({
+                            ...values,
+                            [field.key]: event.target.value,
+                          })
+                        }
+                      >
+                        <option value="">Not assigned</option>
+                        {field.options?.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : ["textarea", "json", "list"].includes(
+                        field.type ?? "",
+                      ) ? (
+                      <textarea
+                        className="field min-h-24"
+                        required={field.required}
+                        disabled={busy}
+                        maxLength={field.max}
+                        value={String(values[field.key] ?? "")}
+                        onChange={(event) =>
+                          setValues({
+                            ...values,
+                            [field.key]: event.target.value,
+                          })
+                        }
+                      />
+                    ) : field.type === "password" ? (
+                      <PasswordInput
+                        aria-label={field.label}
+                        value={String(values[field.key] ?? "")}
+                        required={field.required}
+                        autoComplete="off"
+                        maxLength={field.max}
+                        disabled={busy}
+                        onChange={(event) =>
+                          setValues({
+                            ...values,
+                            [field.key]: event.target.value,
+                          })
+                        }
+                      />
+                    ) : (
+                      <input
+                        className="field"
+                        type={field.type ?? "text"}
+                        required={field.required}
+                        disabled={busy}
+                        min={field.type === "number" ? field.min : undefined}
+                        max={field.type === "number" ? field.max : undefined}
+                        maxLength={
+                          field.type === "number" ? undefined : field.max
+                        }
+                        step={field.step}
+                        value={String(values[field.key] ?? "")}
+                        onChange={(event) =>
+                          setValues({
+                            ...values,
+                            [field.key]: event.target.value,
+                          })
+                        }
+                      />
+                    )}
+                  </>
+                )}
+              </label>
+            ))}
         </div>
         {(error || draft.error) && (
           <p role="alert" className="text-sm text-red-700">

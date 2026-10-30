@@ -185,6 +185,10 @@ def start() -> None:
                     phone_raw=phone,
                     phone_normalized="+233" + phone[1:],
                     community="Synthetic fixture",
+                    government_id_type="GHANA_CARD",
+                    government_id_ciphertext=Fernet(encryption_key.encode())
+                    .encrypt(("SYNTHETIC-GHANA-" + phone).encode())
+                    .decode(),
                 )
                 db.add(person)
                 db.flush()
@@ -270,6 +274,10 @@ def start() -> None:
                     phone_raw=phone,
                     phone_normalized="+233" + phone[1:],
                     community="Accra",
+                    government_id_type="GHANA_CARD",
+                    government_id_ciphertext=Fernet(encryption_key.encode())
+                    .encrypt(("SYNTHETIC-GHANA-" + phone).encode())
+                    .decode(),
                 )
                 db.add(matching_person)
                 db.flush()
@@ -322,6 +330,10 @@ def start() -> None:
                     phone_raw="02477777" + ("77" if projection == "desktop" else "88"),
                     phone_normalized="+2332477777" + ("77" if projection == "desktop" else "88"),
                     community="Accra",
+                    government_id_type="GHANA_CARD",
+                    government_id_ciphertext=Fernet(encryption_key.encode())
+                    .encrypt(("SYNTHETIC-GHANA-" + phone).encode())
+                    .decode(),
                 )
                 db.add(merl_person)
                 db.flush()
@@ -369,6 +381,10 @@ def start() -> None:
                     phone_raw="02466666" + ("77" if projection == "desktop" else "88"),
                     phone_normalized="+2332466666" + ("77" if projection == "desktop" else "88"),
                     community="Accra",
+                    government_id_type="GHANA_CARD",
+                    government_id_ciphertext=Fernet(encryption_key.encode())
+                    .encrypt(("SYNTHETIC-GHANA-" + phone).encode())
+                    .decode(),
                 )
                 db.add(placement_person)
                 db.flush()
@@ -467,7 +483,9 @@ def start() -> None:
                     f"http://127.0.0.1:{int(os.environ.get('HAPPY_INTAKE_TEST_PORT', '8765'))}",
                 ]
             ),
-            "AUTH_IP_LIMIT": "100",
+            # The entire desktop/mobile suite shares one loopback proxy address.
+            # Production defaults and dedicated throttle regressions stay unchanged.
+            "AUTH_IP_LIMIT": "1000",
             "SUPPLY_ONBOARDING_POLICY_APPROVED": "true",
             "SUPPLY_PRIVACY_NOTICE_VERSION": "SYNTHETIC-E2E-NOTICE",
             "SUPPLY_PRIVACY_NOTICE_TEXT": "Synthetic test privacy notice; not programme policy.",
@@ -476,6 +494,7 @@ def start() -> None:
             "SUPPLY_REQUIRED_FIELDS": "[]",
             "FILE_SCAN_HOST": "",
             "IDENTITY_ENCRYPTION_KEY": encryption_key,
+            "IDENTITY_LOOKUP_KEY": secrets.token_urlsafe(48),
         }
         directory = PROJECT_ROOT / ".local" / "e2e"
         directory.mkdir(parents=True, exist_ok=True)

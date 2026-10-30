@@ -84,6 +84,20 @@ class Placement(Record, Base):
     employment_end_reason: Mapped[str | None] = mapped_column(String(60))
     currently_working: Mapped[bool | None] = mapped_column(Boolean)
     owner_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"), index=True)
+    placed_by_partner: Mapped[str | None] = mapped_column(String(150))
+    placement_region: Mapped[str | None] = mapped_column(String(60))
+    placement_district: Mapped[str | None] = mapped_column(String(60))
+    placement_community: Mapped[str | None] = mapped_column(String(150))
+    sector: Mapped[str | None] = mapped_column(String(60))
+    industry: Mapped[str | None] = mapped_column(String(60))
+    job_type: Mapped[str | None] = mapped_column(String(60))
+    job_role: Mapped[str | None] = mapped_column(String(150))
+    employment_type: Mapped[str | None] = mapped_column(String(20))
+    employment_category: Mapped[str | None] = mapped_column(String(20))
+    employer_name: Mapped[str | None] = mapped_column(String(200))
+    contract_type: Mapped[str | None] = mapped_column(String(60))
+    work_hours: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    work_hours_period: Mapped[str | None] = mapped_column(String(20))
 
 
 class FirstIncomeVerification(Record, Base):

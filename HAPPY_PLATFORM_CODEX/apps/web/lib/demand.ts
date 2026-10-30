@@ -37,12 +37,15 @@ export type Field = {
     | "checkbox"
     | "textarea"
     | "json"
+    | "list"
     | "select";
   required?: boolean;
   max?: number;
   min?: number;
   step?: string;
   options?: { value: string; label: string }[];
+  showWhen?: { key: string; value: string };
+  uiOnly?: boolean;
 };
 const text = (key: string, label: string, max = 150): Field => ({
   key,

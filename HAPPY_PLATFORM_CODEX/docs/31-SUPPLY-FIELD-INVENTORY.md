@@ -5,24 +5,27 @@ headers for Supply onboarding. This approves the field inventory as the working
 reference, not privacy-notice wording or an inferred all-fields-mandatory policy.
 No spreadsheet rows, production participants or HAMIS synchronization are imported.
 
+Updated 29 October 2026 for the user-authorized participant lifecycle changes.
+See [current lifecycle behavior and reporting](52-PARTICIPANT-LIFECYCLE.md).
+
 | Supplied Header | HAPPY Representation | Treatment |
 | --- | --- | --- |
 | PARTICIPANT ID | Participant UUID / participant_code | Generated, immutable HAPPY identity |
 | HAMIS ID | ExternalReference, external_system HAMIS | Reference only; never the primary key |
-| ONBOARDING DATE | created_at / completed_at | Intake and formal completion are distinct; source-date meaning needs confirmation before mapping |
+| ONBOARDING DATE | Participant onboarding_date | Explicit programme business date, separate from creation and completion audit timestamps |
 | IMPLEMENTING PARTNER | implementing_partner | Staff-recorded partner |
 | REGION / DISTRICT / COMMUNITY | Person region_code / district_code / community | Contact/location section |
 | LOCATION STATUS | Person location_status | Contact/location section |
 | SURNAME / FIRST NAME / OTHER NAMES | Person surname / first_name / other_names | Basic section |
 | SEX / DOB / NATIONALITY | Person sex / date_of_birth / nationality | Separate sensitive permissions; demographics write |
-| AGE | Calculated from date_of_birth | Never manually editable |
+| AGE | DOB to today or the relevant onboarding/training/placement date | Read-only current and event-specific ages; future onboarding/training ages are projected |
 | PARTICIPANT TYPE AGE | No invented category | Age-band definition requires programme policy |
 | TELEPHONE | phone_raw / phone_normalized | String input and E.164 normalization |
-| ID TYPE / GHANA CARD ID / VOTER ID | Protected identity type/value + lookup hash | Encrypted; no full-value API projection; current draft stores one selected identity type/value |
+| ID TYPE / GHANA CARD ID / VOTER ID | Independent protected Ghana Card and Voter's ID slots with lookup hashes | Both coexist; ordinary APIs return presence only; full values require an explicitly selected authorized sensitive export |
 | REFUGEE STATUS | SensitiveProfile refugee_status | Restricted |
 | DISPLACEMENT STATUS / REASON | SensitiveProfile displacement_status / displacement_reason | Restricted, conditional applicability needs policy |
 | ORIGINAL / HOST COMMUNITY | SensitiveProfile original_community / host_community | Restricted displacement context |
-| DISABILITY STATUS / SPECIFY | SensitiveProfile disability_status / disability_specify | Restricted, conditional applicability needs policy |
+| DISABILITY STATUS / SPECIFY | SensitiveProfile disability_status / disability_specify | Restricted; Yes requires specification at completion |
 | EDUCATION LEVEL | ParticipantEducation education_level | Historical qualifications, explicit highest flag |
 | EMPLOYMENT STATUS / CURRENT OCCUPATION | Participant employment_status / current_occupation | Employment baseline |
 | MONTHLY INCOME / INCOME FREQUENCY | SensitiveProfile current_income_amount / income_frequency | Restricted; entered frequency is authoritative, not an assumed monthly conversion |
@@ -38,16 +41,17 @@ Required formal-onboarding sections/fields are configuration, with explicit
 programme approval and current programme consent. Derived IDs, calculated age,
 queue metadata and blank columns cannot be made mandatory participant inputs.
 Sensitive data is not made universally mandatory merely because its header
-exists. User clarification of the mandatory subset and approved privacy notice
-is still requested; the working completion gate remains closed in the meantime.
+exists. The user confirmed Ghana Card as required at completion, while permitting
+drafts. Refugee Yes requires nationality and disability Yes requires specification.
+Other mandatory-field and approved privacy-notice settings remain independently
+controlled. The localhost self-test notice is synthetic, not production consent approval.
 
 ## Outstanding Mapping Decisions
 
-Confirm age-band definitions, onboarding-date semantics, official location/
-occupation taxonomy and whether multiple government identity references must
-be retained simultaneously. These decisions must not be silently inferred from
-a spreadsheet. The current identity write replaces the selected protected
-reference; it is not a multi-document identity registry.
+Confirm age-band boundaries/reference dates, Outreach support classification,
+income-band boundaries and official location/occupation taxonomy. These decisions
+must not be silently inferred from a spreadsheet. Independent identity storage
+and the explicit onboarding date have been implemented under the user's direction.
 
 HAMIS mapping/synchronization belongs to Phase 12. Any later source rows must map
 into the same HAPPY domain services, permissions and business rules, with separate

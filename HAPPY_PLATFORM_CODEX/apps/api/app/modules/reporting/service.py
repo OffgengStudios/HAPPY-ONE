@@ -260,7 +260,11 @@ def kpis(db: Session, period: data.Period) -> list[dict[str, Any]]:
             )
             .label("rank"),
         )
-        .where(Outcome.as_of_date <= period.date_to, Outcome.archived_at.is_(None))
+        .where(
+            Outcome.as_of_date <= period.date_to,
+            Outcome.archived_at.is_(None),
+            Outcome.placement_id.is_not(None),
+        )
         .subquery()
     )
     still_working = count(
@@ -586,6 +590,7 @@ def drilldown(
             )
             .where(
                 Outcome.as_of_date <= period.date_to,
+                Outcome.placement_id.is_not(None),
                 Outcome.archived_at.is_(None),
             )
             .subquery()

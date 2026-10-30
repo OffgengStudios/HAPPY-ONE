@@ -49,6 +49,7 @@ class Training(Record, Base):
     location_text: Mapped[str | None] = mapped_column(Text)
     virtual_platform: Mapped[str | None] = mapped_column(String(120))
     modules_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+    agriculture_sector: Mapped[str | None] = mapped_column(String(60))
     status: Mapped[str] = mapped_column(String(20), default="DRAFT", index=True)
 
 
@@ -73,3 +74,5 @@ class TrainingAttendance(Record, Base):
     certificate_issued: Mapped[bool] = mapped_column(Boolean, default=False)
     certificate_document_id: Mapped[UUID | None] = mapped_column(ForeignKey("documents.id"))
     notes: Mapped[str | None] = mapped_column(Text)
+    received_modules: Mapped[list[str]] = mapped_column(JSON, default=list, server_default="[]")
+    completed_modules: Mapped[list[str]] = mapped_column(JSON, default=list, server_default="[]")

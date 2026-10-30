@@ -11,7 +11,7 @@ from app.modules.demand.models import Organization, Record
 from app.modules.demand.service import changed, writable
 from app.modules.iam.dependencies import Principal
 from app.modules.iam.service import audit
-from app.modules.supply.models import Document, Participant
+from app.modules.supply.models import Document, Participant, Person
 from app.modules.training import schemas as data
 from app.modules.training.models import Training, TrainingAttendance
 
@@ -57,10 +57,35 @@ def update(
 ) -> Training:
     writable(row, values.version)
     validate_links(db, values)
-    for key, value in values.model_dump(exclude={"version"}).items():
+    previous_dates = {
+        "start_date": str(row.start_date),
+        "end_date": str(row.end_date) if row.end_date else None,
+    }
+    if db.scalar(
+        select(Person.id)
+        .join(Participant, Participant.person_id == Person.id)
+        .join(TrainingAttendance, TrainingAttendance.participant_id == Participant.id)
+        .where(TrainingAttendance.training_id == row.id, Person.date_of_birth > values.start_date)
+    ):
+        raise ApiError(
+            422, "EVENT_BEFORE_BIRTH", "Training cannot start before a participant's birth."
+        )
+    for key, value in values.model_dump(exclude={"version"}, exclude_unset=True).items():
         setattr(row, key, value)
     changed(row, actor.user.id)
-    audit(db, "training.updated", actor.audit_actor, "training", row.id, request)
+    audit(
+        db,
+        "training.updated",
+        actor.audit_actor,
+        "training",
+        row.id,
+        request,
+        changes={
+            "previous_dates": previous_dates,
+            "start_date": str(row.start_date),
+            "end_date": str(row.end_date) if row.end_date else None,
+        },
+    )
     db.commit()
     return row
 
@@ -82,6 +107,14 @@ def add_participants(
     )
     if participants != set(unique_ids):
         raise ApiError(404, "PARTICIPANT_NOT_FOUND", "One or more participants were not found.")
+    if db.scalar(
+        select(Person.id)
+        .join(Participant, Participant.person_id == Person.id)
+        .where(Participant.id.in_(unique_ids), Person.date_of_birth > training.start_date)
+    ):
+        raise ApiError(
+            422, "EVENT_BEFORE_BIRTH", "Training cannot start before a participant's birth."
+        )
     rows = [
         TrainingAttendance(
             training_id=training.id,
@@ -123,7 +156,7 @@ def update_attendance(
     request: Request,
 ) -> TrainingAttendance:
     writable(row, values.version)
-    for key, value in values.model_dump(exclude={"version"}).items():
+    for key, value in values.model_dump(exclude={"version"}, exclude_unset=True).items():
         setattr(row, key, value)
     changed(row, actor.user.id)
     audit(
@@ -144,6 +177,8 @@ def issue_certificate(
     document = db.get(Document, values.document_id)
     if not document or document.archived_at or document.participant_id != row.participant_id:
         raise ApiError(404, "DOCUMENT_NOT_FOUND", "Participant document not found.")
+    if document.scan_status != "AVAILABLE":
+        raise ApiError(422, "FILE_SCAN_PENDING", "Certificate evidence must pass scanning first.")
     row.certificate_document_id = document.id
     row.certificate_issued = True
     changed(row, actor.user.id)

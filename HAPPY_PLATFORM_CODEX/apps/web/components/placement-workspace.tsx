@@ -80,7 +80,11 @@ export function PlacementWorkspace({
         },
         ...placementFields,
       ],
-      initial: { payroll_frequency: "MONTHLY", salary_frequency: "MONTHLY" },
+      initial: {
+        payroll_frequency: "MONTHLY",
+        salary_frequency: "MONTHLY",
+        salary_currency: "GHS",
+      },
       extra: {},
     });
   return (

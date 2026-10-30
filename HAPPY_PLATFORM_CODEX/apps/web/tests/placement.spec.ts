@@ -41,7 +41,7 @@ test("Matching staff records start, verifies first income and preserves a placem
   await dialog
     .getByLabel("Expected start date", { exact: true })
     .fill("2026-10-10");
-  await dialog.getByLabel("Salary amount", { exact: true }).fill("2400");
+  await dialog.getByLabel("PLACEMENT INCOME", { exact: true }).fill("2400");
   await dialog.getByLabel("Monthly payday", { exact: true }).fill("25");
   await dialog.getByLabel("Monthly payroll cutoff", { exact: true }).fill("15");
   await save(page, "Create placement");

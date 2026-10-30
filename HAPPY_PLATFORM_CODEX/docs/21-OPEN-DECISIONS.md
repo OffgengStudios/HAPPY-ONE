@@ -2,6 +2,13 @@
 
 Codex must not silently resolve these as programme policy.
 
+Participant lifecycle update, 29 October 2026: the user confirmed Ghana Card at
+onboarding completion, independent Ghana Card/Voter's ID storage, an explicit
+Onboarding Date, current age plus event-specific ages, and the 16 placement fields.
+Drafts remain available. See [implementation and reporting rules](52-PARTICIPANT-LIFECYCLE.md).
+Age-36 classification, cohort reference date, Outreach support treatment,
+overlapping income bands and official multi-job/outcome counting remain open.
+
 ## Business
 
 - final MOU requirement policy per employer type

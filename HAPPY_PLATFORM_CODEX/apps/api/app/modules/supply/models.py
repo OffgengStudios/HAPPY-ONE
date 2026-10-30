@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import (
     JSON,
@@ -16,6 +16,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    Uuid,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -44,6 +45,8 @@ class Person(Record, Base):
     government_id_type: Mapped[str | None] = mapped_column(String(40))
     government_id_ciphertext: Mapped[str | None] = mapped_column(Text)
     government_id_hash: Mapped[str | None] = mapped_column(String(64), index=True)
+    voter_id_ciphertext: Mapped[str | None] = mapped_column(Text)
+    voter_id_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
 
 
 class SensitiveProfile(Record, Base):
@@ -61,6 +64,11 @@ class SensitiveProfile(Record, Base):
     disability_specify: Mapped[str | None] = mapped_column(Text)
     current_income_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     income_frequency: Mapped[str | None] = mapped_column(String(20))
+    baseline_income_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    baseline_income_frequency: Mapped[str | None] = mapped_column(String(20))
+    baseline_captured_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    income_status: Mapped[str | None] = mapped_column(String(20))
+    baseline_income_status: Mapped[str | None] = mapped_column(String(20))
 
 
 class Participant(Record, Base):
@@ -92,6 +100,10 @@ class Participant(Record, Base):
     source_type: Mapped[str | None] = mapped_column(String(60))
     source_detail: Mapped[str | None] = mapped_column(String(200))
     implementing_partner: Mapped[str | None] = mapped_column(String(150))
+    onboarding_date: Mapped[date | None] = mapped_column(Date)
+    support_type: Mapped[str | None] = mapped_column(String(60))
+    baseline_employment_status: Mapped[str | None] = mapped_column(String(60))
+    baseline_occupation: Mapped[str | None] = mapped_column(String(150))
     employment_status: Mapped[str | None] = mapped_column(String(60))
     current_occupation: Mapped[str | None] = mapped_column(String(150))
     sector_code: Mapped[str | None] = mapped_column(String(60))
@@ -129,6 +141,17 @@ class Consent(Record, Base):
     method: Mapped[str] = mapped_column(String(40))
     privacy_notice_version: Mapped[str] = mapped_column(String(100))
     reason: Mapped[str | None] = mapped_column(Text)
+
+
+class OnboardingRevision(Base):
+    __tablename__ = "onboarding_revisions"
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    participant_id: Mapped[UUID] = mapped_column(ForeignKey("participants.id"), index=True)
+    previous_json: Mapped[dict[str, Any]] = mapped_column(JSON)
+    created_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now().astimezone()
+    )
 
 
 class Education(Record, Base):

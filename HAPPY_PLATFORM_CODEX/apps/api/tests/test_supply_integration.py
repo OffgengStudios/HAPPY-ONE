@@ -175,6 +175,11 @@ def test_intake_duplicates_versions_progressive_sections_and_archive(db):
 def test_consent_completion_withdrawal_and_policy_changes_gate_submission(db, monkeypatch):
     client, user = login(db)
     row = create(client)
+    # This consent-policy fixture satisfies the separately tested Ghana Card gate.
+    person = db.get(Person, UUID(row["person_id"]))
+    person.government_id_type = "GHANA_CARD"
+    person.government_id_ciphertext = "synthetic-protected-identity-fixture"
+    db.commit()
     path = "/api/v1/participants/" + row["id"]
     assert (
         client.post(

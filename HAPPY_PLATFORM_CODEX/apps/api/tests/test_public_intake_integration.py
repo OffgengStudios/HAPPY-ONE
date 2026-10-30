@@ -128,7 +128,7 @@ def test_public_submission_uses_central_domain_without_accounts(db):
     assert not client.cookies
     row = db.scalar(select(Participant))
     assert row and row.source_system == "UNIJAY_FASHION" and row.created_via == "PARTICIPANT"
-    assert row.created_by is None and row.onboarding_status == "COMPLETE"
+    assert row.created_by is None and row.onboarding_status == "IN_PROGRESS"
     assert db.scalar(select(func.count()).select_from(User)) == 0
     grant = db.scalar(select(Consent))
     assert grant.status == "ACTIVE" and grant.method == "DIGITAL"
@@ -162,6 +162,24 @@ def test_public_formula_input_is_literal_in_synchronous_and_worker_csv(db, monke
     assert submit(public, submitted).status_code == 202
     assert db.scalar(select(Person)).first_name == "=1+"  # Only the export representation changes.
     staff = staff_login(db, "ADMIN")
+    participant = db.scalar(select(Participant))
+    assert (
+        "ghana_card" in staff.get(f"/api/v1/participants/{participant.id}").json()["missing_fields"]
+    )
+    identity = staff.patch(
+        f"/api/v1/participants/{participant.id}/identity",
+        json={
+            "version": participant.version,
+            "government_id_type": "GHANA_CARD",
+            "government_id": "SYNTHETIC-GHANA-FORMULA-TEST",
+        },
+    )
+    assert identity.status_code == 200, identity.text
+    completed = staff.post(
+        f"/api/v1/participants/{participant.id}/onboarding/complete",
+        json={"version": identity.json()["version"], "completion_mode": "STAFF_ASSISTED"},
+    )
+    assert completed.status_code == 200, completed.text
     request = {"kpi_code": "KPI-SUP-001", "date_from": "2026-01-01", "date_to": "2026-12-31"}
     synchronous = staff.post("/api/v1/reports/export", json=request)
     assert synchronous.status_code == 200

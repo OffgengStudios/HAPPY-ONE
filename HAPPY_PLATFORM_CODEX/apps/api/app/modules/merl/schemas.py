@@ -37,6 +37,12 @@ class FollowUpCancel(Version):
 
 
 class OutcomeFields(BaseModel):
+    income_status: Literal["KNOWN", "UNKNOWN", "NOT_RECORDED", "NOT_APPLICABLE"] | None = None
+    employment_start_date: date | None = None
+    employment_type: Literal["WAGE", "SELF"] | None = None
+    employment_category: Literal["NEW", "IMPROVED", "ADDITIONAL"] | None = None
+    job_type: Annotated[str, Field(max_length=60)] | None = None
+    agriculture: "Agriculture" = Field(default_factory=lambda: Agriculture())
     as_of_date: date
     currently_working: bool
     current_employer: Short | None = None
@@ -53,6 +59,13 @@ class OutcomeFields(BaseModel):
 
     @model_validator(mode="after")
     def income(self) -> Self:
+        if (
+            self.income_status in {"UNKNOWN", "NOT_RECORDED", "NOT_APPLICABLE"}
+            and self.current_income_amount is not None
+        ):
+            raise ValueError("A non-amount income status cannot also contain an amount.")
+        if self.income_status == "KNOWN" and self.current_income_amount is None:
+            raise ValueError("Known income requires an amount, including zero.")
         if self.current_income_amount is not None and not self.income_frequency:
             raise ValueError("Current income needs a frequency.")
         return self
@@ -65,6 +78,35 @@ class OutcomeCreate(OutcomeFields):
 
 class OutcomeUpdate(OutcomeFields, Version):
     reason: Text
+
+
+class Agriculture(BaseModel):
+    model_config = {"extra": "forbid"}
+    sector: Annotated[str, Field(max_length=60)] | None = None
+    farm_management_services: Annotated[str, Field(max_length=200)] | None = None
+    farm_size_acres: Decimal | None = Field(default=None, ge=0)
+    seed_kg: Decimal | None = Field(default=None, ge=0)
+    fertilizer_kg: Decimal | None = Field(default=None, ge=0)
+    crop_protection_litre: Decimal | None = Field(default=None, ge=0)
+    inoculant_g: Decimal | None = Field(default=None, ge=0)
+    volumes_harvested: Decimal | None = Field(default=None, ge=0)
+    harvest_unit: Annotated[str, Field(max_length=60)] | None = None
+
+    @model_validator(mode="after")
+    def unit(self) -> Self:
+        if self.volumes_harvested is not None and not self.harvest_unit:
+            raise ValueError("Harvest volume requires a unit.")
+        return self
+
+
+class IndependentOutcome(OutcomeFields):
+    verification_notes: Text
+
+
+OutcomeFields.model_rebuild()
+OutcomeCreate.model_rebuild()
+OutcomeUpdate.model_rebuild()
+IndependentOutcome.model_rebuild()
 
 
 class IssueCreate(BaseModel):
